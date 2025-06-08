@@ -1,0 +1,183 @@
+<div class="dashboard-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="toggle-sidebar" onclick="toggleSidebar()">
+                ☰
+            </button>
+            <h2>MediRecord Pro</h2>
+        </div>
+
+        <nav class="nav-menu" id="navMenu">
+            <!-- El contenido del menú se llenará dinámicamente según el rol -->
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <header class="dashboard-header">
+            <div class="header-search">
+                <input type="search" class="search-input" placeholder="Buscar...">
+            </div>
+
+            <div class="user-menu">
+                <div class="notifications" onclick="toggleNotifications()">
+                    <i class="fas fa-bell"></i>
+                    <span class="notifications-badge" id="notificationCount">0</span>
+                </div>
+
+                <div class="user-profile" onclick="toggleUserMenu()">
+                    <img src="../../assets/img/default-avatar.png" alt="Usuario" class="profile-image" id="userAvatar">
+                    <span id="userName">Cargando...</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <!-- El contenido específico de cada página se insertará aquí -->
+            <div id="pageContent"></div>
+        </main>
+    </div>
+</div>
+
+<!-- Menú desplegable de usuario -->
+<div class="user-dropdown" id="userDropdown" style="display: none;">
+    <ul>
+        <li><a href="../profile/index.html">Mi Perfil</a></li>
+        <li><a href="../settings/index.html">Configuración</a></li>
+        <li><hr></li>
+        <li><a href="#" onclick="authManager.signOut()">Cerrar Sesión</a></li>
+    </ul>
+</div>
+
+<!-- Panel de notificaciones -->
+<div class="notifications-panel" id="notificationsPanel" style="display: none;">
+    <div class="notifications-header">
+        <h3>Notificaciones</h3>
+        <button onclick="markAllAsRead()">Marcar todo como leído</button>
+    </div>
+    <div class="notifications-list" id="notificationsList">
+        <!-- Las notificaciones se cargarán dinámicamente -->
+    </div>
+</div>
+
+<!-- Scripts -->
+<script>
+    // Función para alternar el sidebar
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const header = document.querySelector('.dashboard-header');
+        
+        sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('expanded');
+        header.classList.toggle('expanded');
+    }
+
+    // Función para alternar el menú de usuario
+    function toggleUserMenu() {
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Función para alternar el panel de notificaciones
+    function toggleNotifications() {
+        const panel = document.getElementById('notificationsPanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // Función para marcar todas las notificaciones como leídas
+    function markAllAsRead() {
+        // Implementar lógica para marcar notificaciones como leídas
+        document.getElementById('notificationCount').textContent = '0';
+    }
+
+    // Cargar menú según el rol del usuario
+    async function loadNavMenu() {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('No user found');
+
+            const { data: profile, error } = await supabase
+                .from('users')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error) throw error;
+
+            // Configurar menú según el rol
+            const navMenu = document.getElementById('navMenu');
+            const menuItems = getMenuItems(profile.role);
+            
+            navMenu.innerHTML = menuItems.map(item => `
+                <a href="${item.url}" class="nav-item ${window.location.pathname.includes(item.url) ? 'active' : ''}">
+                    <i class="${item.icon}"></i>
+                    <span>${item.label}</span>
+                </a>
+            `).join('');
+
+            // Actualizar información del usuario
+            document.getElementById('userName').textContent = profile.full_name;
+            if (profile.avatar_url) {
+                document.getElementById('userAvatar').src = profile.avatar_url;
+            }
+
+        } catch (error) {
+            console.error('Error loading nav menu:', error.message);
+        }
+    }
+
+    // Obtener items del menú según el rol
+    function getMenuItems(role) {
+        const menuItems = {
+            admin: [
+                { label: 'Dashboard', url: '/pages/dashboard/admin.html', icon: 'fas fa-home' },
+                { label: 'Usuarios', url: '/pages/users/index.html', icon: 'fas fa-users' },
+                { label: 'Expedientes', url: '/pages/records/index.html', icon: 'fas fa-folder-open' },
+                { label: 'Reportes', url: '/pages/reports/index.html', icon: 'fas fa-chart-bar' },
+                { label: 'Configuración', url: '/pages/settings/index.html', icon: 'fas fa-cog' }
+            ],
+            doctor: [
+                { label: 'Dashboard', url: '/pages/dashboard/doctor.html', icon: 'fas fa-home' },
+                { label: 'Mis Pacientes', url: '/pages/patients/index.html', icon: 'fas fa-user-injured' },
+                { label: 'Citas', url: '/pages/appointments/index.html', icon: 'fas fa-calendar-alt' },
+                { label: 'Expedientes', url: '/pages/records/index.html', icon: 'fas fa-folder-open' },
+                { label: 'Consultas', url: '/pages/consultations/index.html', icon: 'fas fa-stethoscope' }
+            ],
+            nurse: [
+                { label: 'Dashboard', url: '/pages/dashboard/nurse.html', icon: 'fas fa-home' },
+                { label: 'Pacientes', url: '/pages/patients/index.html', icon: 'fas fa-user-injured' },
+                { label: 'Signos Vitales', url: '/pages/vitals/index.html', icon: 'fas fa-heartbeat' },
+                { label: 'Medicamentos', url: '/pages/medications/index.html', icon: 'fas fa-pills' }
+            ],
+            patient: [
+                { label: 'Dashboard', url: '/pages/dashboard/patient.html', icon: 'fas fa-home' },
+                { label: 'Mi Expediente', url: '/pages/records/my-record.html', icon: 'fas fa-folder-open' },
+                { label: 'Mis Citas', url: '/pages/appointments/my-appointments.html', icon: 'fas fa-calendar-alt' },
+                { label: 'Resultados', url: '/pages/results/index.html', icon: 'fas fa-file-medical-alt' }
+            ]
+        };
+
+        return menuItems[role] || [];
+    }
+
+    // Cargar menú al iniciar
+    document.addEventListener('DOMContentLoaded', loadNavMenu);
+
+    // Cerrar dropdowns al hacer click fuera
+    document.addEventListener('click', function(event) {
+        const userDropdown = document.getElementById('userDropdown');
+        const userProfile = document.querySelector('.user-profile');
+        const notificationsPanel = document.getElementById('notificationsPanel');
+        const notifications = document.querySelector('.notifications');
+
+        if (!userProfile.contains(event.target) && !userDropdown.contains(event.target)) {
+            userDropdown.style.display = 'none';
+        }
+
+        if (!notifications.contains(event.target) && !notificationsPanel.contains(event.target)) {
+            notificationsPanel.style.display = 'none';
+        }
+    });
+</script>
