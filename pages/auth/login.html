@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - MediRecord Pro</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/css/auth.css">
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Custom JS -->
+    <script src="../../assets/js/supabase-config.js"></script>
+    <script src="../../assets/js/auth.js"></script>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Iniciar Sesión</h1>
+                <p>Accede a tu cuenta de MediRecord Pro</p>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Correo Electrónico</label>
+                    <input type="email" id="email" name="email" required 
+                           placeholder="ejemplo@correo.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <div class="password-input">
+                        <input type="password" id="password" name="password" required 
+                               placeholder="Tu contraseña">
+                        <button type="button" class="toggle-password" 
+                                onclick="togglePassword('password')">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="remember-forgot">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="remember">
+                            <span class="checkmark"></span>
+                            Recordarme
+                        </label>
+                        <a href="reset-password.html" class="forgot-link">
+                            ¿Olvidaste tu contraseña?
+                        </a>
+                    </div>
+                </div>
+
+                <div id="messageContainer" class="message-container"></div>
+
+                <button type="submit" id="loginButton" class="btn btn-primary btn-block" 
+                        data-original-text="Iniciar Sesión">
+                    Iniciar Sesión
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>¿No tienes una cuenta? 
+                    <a href="register.html">Regístrate aquí</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Manejar envío del formulario
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // Validaciones
+            if (!authManager.isValidEmail(email)) {
+                showMessage('messageContainer', 'Por favor, ingresa un correo electrónico válido');
+                return;
+            }
+
+            if (!authManager.isValidPassword(password)) {
+                showMessage('messageContainer', 'La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+
+            // Mostrar loading
+            showLoading('loginButton', true);
+
+            // Intentar login
+            const result = await authManager.signIn(email, password);
+            
+            if (result.success) {
+                showMessage('messageContainer', '¡Inicio de sesión exitoso!', 'success');
+                // La redirección la maneja el AuthManager
+            } else {
+                showMessage('messageContainer', result.error);
+                showLoading('loginButton', false);
+            }
+        });
+
+        // Función para mostrar/ocultar contraseña
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    </script>
+</body>
+</html>
