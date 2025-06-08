@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Médico - MediRecord Pro</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/css/dashboard.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Custom JS -->
+    <script src="../../assets/js/supabase-config.js"></script>
+    <script src="../../assets/js/auth.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="toggle-sidebar" onclick="toggleSidebar()">
+                    ☰
+                </button>
+                <h2>MediRecord Pro</h2>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="doctor.html" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="../patients/index.html" class="nav-item">
+                    <i class="fas fa-user-injured"></i>
+                    <span>Mis Pacientes</span>
+                </a>
+                <a href="../appointments/index.html" class="nav-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Citas</span>
+                </a>
+                <a href="../consultations/index.html" class="nav-item">
+                    <i class="fas fa-stethoscope"></i>
+                    <span>Consultas</span>
+                </a>
+                <a href="../records/index.html" class="nav-item">
+                    <i class="fas fa-folder-open"></i>
+                    <span>Expedientes</span>
+                </a>
+                <a href="../prescriptions/index.html" class="nav-item">
+                    <i class="fas fa-prescription-bottle-alt"></i>
+                    <span>Recetas</span>
+                </a>
+                <a href="../laboratory/index.html" class="nav-item">
+                    <i class="fas fa-flask"></i>
+                    <span>Laboratorio</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <header class="dashboard-header">
+                <div class="header-search">
+                    <input type="search" class="search-input" placeholder="Buscar pacientes, expedientes...">
+                </div>
+
+                <div class="user-menu">
+                    <div class="notifications" onclick="toggleNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <span class="notifications-badge" id="notificationCount">5</span>
+                    </div>
+
+                    <div class="user-profile" onclick="toggleUserMenu()">
+                        <img src="../../assets/img/default-avatar.png" alt="Usuario" class="profile-image" id="userAvatar">
+                        <span id="userName">Dr. García</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-area">
+                <div class="welcome-section">
+                    <h1>Bienvenido, <span id="doctorName">Dr. García</span></h1>
+                    <p>Especialidad: <span id="doctorSpecialty">Medicina General</span></p>
+                </div>
+
+                <!-- Estadísticas del Médico -->
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Mis Pacientes</h3>
+                            <i class="fas fa-user-injured" style="color: var(--secondary-color);"></i>
+                        </div>
+                        <div class="card-value" id="myPatients">0</div>
+                        <div class="card-footer">
+                            <span class="status-active">Pacientes activos</span>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Citas Hoy</h3>
+                            <i class="fas fa-calendar-day" style="color: var(--warning-color);"></i>
+                        </div>
+                        <div class="card-value" id="todayAppointments">0</div>
+                        <div class="card-footer">
+                            <span class="status-pending">Próxima: 10:30 AM</span>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Consultas Este Mes</h3>
+                            <i class="fas fa-stethoscope" style="color: var(--success-color);"></i>
+                        </div>
+                        <div class="card-value" id="monthlyConsultations">0</div>
+                        <div class="card-footer">
+                            <span class="status-active">+15% vs mes anterior</span>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Pendientes</h3>
+                            <i class="fas fa-clock" style="color: var(--accent-color);"></i>
+                        </div>
+                        <div class="card-value" id="pendingTasks">0</div>
+                        <div class="card-footer">
+                            <span class="status-pending">Requieren atención</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agenda del Día -->
+                <div class="dashboard-grid">
+                    <div class="dashboard-card" style="grid-column: span 2;">
+                        <div class="card-header">
+                            <h3 class="card-title">Agenda de Hoy</h3>
+                            <button class="btn btn-primary" onclick="window.location.href='../appointments/index.html'">
+                                Ver Todas
+                            </button>
+                        </div>
+                        <div class="appointments-list" id="todaySchedule">
+                            <!-- Las citas se cargarán dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3 class="card-title">Pacientes Críticos</h3>
+                        </div>
+                        <div class="critical-patients" id="criticalPatients">
+                            <!-- Los pacientes críticos se cargarán dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Consultas -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Consultas por Semana</h3>
+                    </div>
+                    <canvas id="consultationsChart" width="400" height="200"></canvas>
+                </div>
+
+                <!-- Acciones Rápidas -->
+                <div class="quick-actions">
+                    <h3>Acciones Rápidas</h3>
+                    <div class="actions-grid">
+                        <button class="action-btn" onclick="newConsultation()">
+                            <i class="fas fa-plus"></i>
+                            Nueva Consulta
+                        </button>
+                        <button class="action-btn" onclick="newPrescription()">
+                            <i class="fas fa-prescription"></i>
+                            Nueva Receta
+                        </button>
+                        <button class="action-btn" onclick="orderLab()">
+                            <i class="fas fa-flask"></i>
+                            Orden de Laboratorio
+                        </button>
+                        <button class="action-btn" onclick="viewSchedule()">
+                            <i class="fas fa-calendar"></i>
+                            Ver Agenda
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resultados Pendientes -->
+                <div class="table-container">
+                    <div class="card-header" style="padding: 1rem;">
+                        <h3 class="card-title">Resultados de Laboratorio Pendientes</h3>
+                        <button class="btn btn-secondary">Ver Todos</button>
+                    </div>
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Paciente</th>
+                                <th>Estudio</th>
+                                <th>Fecha Orden</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingResults">
+                            <!-- Los resultados se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        let consultationsChart;
+
+        // Inicializar dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadDoctorData();
+            await loadTodaySchedule();
+            await loadCriticalPatients();
+            await loadPendingResults();
+            initializeChart();
+        });
+
+        // Cargar datos del médico
+        async function loadDoctorData() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) throw new Error('No user found');
+
+                const { data: profile, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                if (error) throw error;
+
+                document.getElementById('doctorName').textContent = profile.full_name;
+                document.getElementById('doctorSpecialty').textContent = profile.specialty || 'Medicina General';
+                document.getElementById('userName').textContent = profile.full_name;
+
+                // Cargar estadísticas
+                await loadDoctorStats(user.id);
+
+            } catch (error) {
+                console.error('Error loading doctor data:', error);
+            }
+        }
+
+        // Cargar estadísticas del médico
+        async function loadDoctorStats(doctorId) {
+            try {
+                // Contar pacientes del médico
+                const { count: patientsCount } = await supabase
+                    .from('patients')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('primary_doctor_id', doctorId);
+
+                // Contar citas de hoy
+                const today = new Date().toISOString().split('T')[0];
+                const { count: todayCount } = await supabase
+                    .from('appointments')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('doctor_id', doctorId)
+                    .gte('date_time', today)
+                    .lt('date_time', today + 'T23:59:59');
+
+                // Contar consultas del mes
+                const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+                const { count: monthlyCount } = await supabase
+                    .from('medical_consultations')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('doctor_id', doctorId)
+                    .gte('date_time', startOfMonth);
+
+                document.getElementById('myPatients').textContent = patientsCount || 0;
+                document.getElementById('todayAppointments').textContent = todayCount || 0;
+                document.getElementById('monthlyConsultations').textContent = monthlyCount || 0;
+                document.getElementById('pendingTasks').textContent = '3'; // Placeholder
+
+            } catch (error) {
+                console.error('Error loading doctor stats:', error);
+            }
+        }
+
+        // Cargar agenda del día
+        async function loadTodaySchedule() {
+            const appointments = [
+                {
+                    time: '09:00',
+                    patient: 'María López',
+                    type: 'Consulta General',
+                    status: 'confirmed'
+                },
+                {
+                    time: '10:30',
+                    patient: 'Juan Pérez',
+                    type: 'Seguimiento',
+                    status: 'pending'
+                },
+                {
+                    time: '11:15',
+                    patient: 'Ana García',
+                    type: 'Primera Consulta',
+                    status: 'confirmed'
+                },
+                {
+                    time: '14:00',
+                    patient: 'Carlos Ruiz',
+                    type: 'Control',
+                    status: 'confirmed'
+                }
+            ];
+
+            const scheduleContainer = document.getElementById('todaySchedule');
+            scheduleContainer.innerHTML = appointments.map(apt => `
+                <div class="appointment-item">
+                    <div class="appointment-time">${apt.time}</div>
+                    <div class="appointment-details">
+                        <strong>${apt.patient}</strong>
+                        <span>${apt.type}</span>
+                    </div>
+                    <div class="appointment-status">
+                        <span class="status-badge ${apt.status === 'confirmed' ? 'status-active' : 'status-pending'}">
+                            ${apt.status === 'confirmed' ? 'Confirmada' : 'Pendiente'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Cargar pacientes críticos
+        async function loadCriticalPatients() {
+            const criticalPatients = [
+                {
+                    name: 'Roberto Silva',
+                    condition: 'Hipertensión severa',
+                    lastVisit: '2024-01-10',
+                    priority: 'high'
+                },
+                {
+                    name: 'Elena Martínez',
+                    condition: 'Diabetes descontrolada',
+                    lastVisit: '2024-01-12',
+                    priority: 'medium'
+                }
+            ];
+
+            const criticalContainer = document.getElementById('criticalPatients');
+            criticalContainer.innerHTML = criticalPatients.map(patient => `
+                <div class="critical-patient-item">
+                    <div class="patient-info">
+                        <strong>${patient.name}</strong>
+                        <span>${patient.condition}</span>
+                        <small>Última visita: ${patient.lastVisit}</small>
+                    </div>
+                    <div class="priority-indicator ${patient.priority}"></div>
+                </div>
+            `).join('');
+        }
+
+        // Cargar resultados pendientes
+        async function loadPendingResults() {
+            const results = [
+                {
+                    patient: 'María López',
+                    study: 'Hemograma completo',
+                    orderDate: '2024-01-13',
+                    status: 'En proceso'
+                },
+                {
+                    patient: 'Juan Pérez',
+                    study: 'Radiografía de tórax',
+                    orderDate: '2024-01-12',
+                    status: 'Listo'
+                }
+            ];
+
+            const tbody = document.getElementById('pendingResults');
+            tbody.innerHTML = results.map(result => `
+                <tr>
+                    <td>${result.patient}</td>
+                    <td>${result.study}</td>
+                    <td>${result.orderDate}</td>
+                    <td><span class="status-badge ${result.status === 'Listo' ? 'status-active' : 'status-pending'}">${result.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary">Ver</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Inicializar gráfico
+        function initializeChart() {
+            const ctx = document.getElementById('consultationsChart').getContext('2d');
+            consultationsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+                    datasets: [{
+                        label: 'Consultas',
+                        data: [8, 12, 10, 15, 9, 6],
+                        backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                        borderColor: 'rgb(52, 152, 219)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Acciones rápidas
+        function newConsultation() {
+            window.location.href = '../consultations/new.html';
+        }
+
+        function newPrescription() {
+            window.location.href = '../prescriptions/new.html';
+        }
+
+        function orderLab() {
+            window.location.href = '../laboratory/new-order.html';
+        }
+
+        function viewSchedule() {
+            window.location.href = '../appointments/index.html';
+        }
+
+        // Funciones de navegación
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+        }
+
+        function toggleNotifications() {
+            console.log('Toggle notifications');
+        }
+
+        function toggleUserMenu() {
+            console.log('Toggle user menu');
+        }
+    </script>
+
+    <style>
+        .welcome-section {
+            margin-bottom: 2rem;
+        }
+
+        .welcome-section h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .appointment-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .appointment-time {
+            font-weight: 600;
+            color: var(--secondary-color);
+            margin-right: 1rem;
+            min-width: 60px;
+        }
+
+        .appointment-details {
+            flex: 1;
+        }
+
+        .appointment-details strong {
+            display: block;
+        }
+
+        .appointment-details span {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .critical-patient-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--gray-light);
+        }
+
+        .patient-info {
+            flex: 1;
+        }
+
+        .patient-info strong {
+            display: block;
+        }
+
+        .patient-info span {
+            color: var(--accent-color);
+            font-size: 0.9rem;
+        }
+
+        .patient-info small {
+            display: block;
+            color: var(--gray);
+            font-size: 0.8rem;
+        }
+
+        .priority-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .priority-indicator.high {
+            background-color: var(--accent-color);
+        }
+
+        .priority-indicator.medium {
+            background-color: var(--warning-color);
+        }
+
+        .quick-actions {
+            margin: 2rem 0;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.5rem;
+            background-color: var(--white);
+            border: 2px solid var(--gray-light);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            border-color: var(--secondary-color);
+            background-color: var(--gray-light);
+        }
+
+        .action-btn i {
+            font-size: 2rem;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+    </style>
+</body>
+</html>
