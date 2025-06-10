@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Usuarios - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/admin.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="index.html"
+           class="nav-item active"><i class="fas fa-users"></i><span>Usuarios</span></a>
+        <a href="../reports/index.html"
+           class="nav-item"><i class="fas fa-chart-bar"></i><span>Reportes</span></a>
+        <a href="../settings/index.html"
+           class="nav-item"><i class="fas fa-cog"></i><span>Configuración</span></a>
+      </nav>
+    </aside>
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div><span id="userName"></span>
+          </div>
+        </div>
+      </header>
+      <main class="content-area">
+        <div class="page-header">
+          <h1>Gestión de Usuarios</h1>
+        </div>
+        <div class="table-container">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Nombre Completo</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>Cuidador Asignado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="managePractitionerModal"
+       class="modal">
+    <div class="modal-content">
+      <span class="close-button"
+            onclick="closeModal()">&times;</span>
+      <h2>Gestionar Cuidador Asignado</h2>
+      <p>Paciente: <strong id="modalPatientName"></strong></p>
+      <p>Cuidador Actual: <strong id="modalCurrentPractitioner"></strong></p>
+      <form id="managePractitionerForm"
+            class="auth-form"
+            style="margin-top: 1rem;">
+        <input type="hidden"
+               id="modalPatientId">
+        <div class="form-group">
+          <label for="practitionerSelect">Asignar Nuevo Cuidador</label>
+          <select id="practitionerSelect"
+                  name="practitionerId"></select>
+        </div>
+        <div id="modalMessageContainer"
+             class="message-container"></div>
+        <button type="submit"
+                class="btn btn-primary btn-block">Guardar Cambio</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentUser;
+    let allPractitioners = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // ======================= INICIO DEL BLOQUE DE SEGURIDAD =======================
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html';
+        return;
+      }
+
+      // Obtenemos el perfil para verificar el rol
+      const profile = await authManager.getUserProfile(user.id);
+      if (!profile) {
+        alert('Error: No se pudo verificar el perfil del usuario.');
+        await authManager.signOut();
+        return;
+      }
+
+      // Definimos los roles que SÍ pueden ver esta página
+      const allowedRoles = ['admin'];
+
+      // Si el rol del usuario no está en la lista de permitidos, lo sacamos de aquí
+      if (!allowedRoles.includes(profile.role)) {
+        alert('Acceso Denegado: No tienes permiso para ver esta página.');
+        await authManager.redirectToDashboard(); // Lo mandamos a su propio dashboard
+        return;
+      }
+      // ======================= FIN DEL BLOQUE DE SEGURIDAD =======================
+
+      currentUser = user;
+      await loadAdminProfile(user);
+      await loadAllUsers();
+      document.getElementById('managePractitionerForm').addEventListener('submit', handlePractitionerAssignment);
+    });
+
+    async function loadAdminProfile(user) {
+      const { data: profile } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+      document.getElementById('userName').textContent = profile?.full_name || 'Admin';
+      document.getElementById('userInitials').textContent = (profile?.full_name || 'A').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    async function loadAllUsers() {
+      const tableBody = document.getElementById('usersTableBody');
+      tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+      try {
+        const { data: practitioners, error: practitionersError } = await supabase.from('users').select('id, full_name, role').in('role', ['doctor', 'nurse']);
+        if (practitionersError) throw practitionersError;
+        allPractitioners = practitioners;
+
+        const { data: users, error: usersError } = await supabase.from('users').select('*, patients:patients!patients_user_id_fkey(*)').order('created_at', { ascending: false });
+        if (usersError) throw usersError;
+
+        const practitionerMap = new Map(allPractitioners.map(p => [p.id, { name: p.full_name, role: p.role }]));
+        renderUsersTable(users, practitionerMap);
+      } catch (error) {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Error al cargar usuarios.</td></tr>';
+        console.error("Error cargando usuarios:", error);
+      }
+    }
+
+    function renderUsersTable(users, practitionerMap) {
+      const tableBody = document.getElementById('usersTableBody');
+      tableBody.innerHTML = users.map(user => {
+        const patientInfo = user.patients && user.patients.length > 0 ? user.patients[0] : null;
+        let practitionerCellHTML = 'No Aplica';
+        let actionsCellHTML = `<a href="edit-user.html?id=${user.id}" class="btn btn-sm btn-secondary">Editar</a>`;
+
+        if (user.role === 'patient' && patientInfo) {
+          const practitioner = practitionerMap.get(patientInfo.primary_doctor_id);
+          let practitionerName = 'Sin Asignar';
+
+          if (practitioner) {
+            const prefix = practitioner.role === 'doctor' ? 'Dr.' : 'Enf.';
+            practitionerName = `${prefix} ${practitioner.name}`;
+            practitionerCellHTML = `
+                        <span>${practitionerName}</span>
+                        <button class="btn-icon" title="Quitar Asignación" onclick="unassignPractitioner('${patientInfo.id}')">&times;</button>
+                    `;
+          } else {
+            practitionerCellHTML = 'Sin Asignar';
+          }
+
+          actionsCellHTML += ` <button class="btn btn-sm btn-tertiary" onclick="openManageModal(
+                    '${patientInfo.id}', '${user.full_name.replace(/'/g, "\\'")}',
+                    '${practitionerName}', '${patientInfo.primary_doctor_id || ''}'
+                )">Asignar</button>`;
+        }
+
+        return `
+                <tr>
+                    <td>${user.full_name || 'N/A'}</td>
+                    <td>${user.email || 'N/A'}</td>
+                    <td><span class="status-badge" style="text-transform: capitalize;">${user.role}</span></td>
+                    <td>${practitionerCellHTML}</td>
+                    <td class="actions-cell">${actionsCellHTML}</td>
+                </tr>`;
+      }).join('');
+    }
+
+    async function unassignPractitioner(patientId) {
+      if (!confirm('¿Estás seguro de que quieres quitar la asignación de este cuidador?')) return;
+      const { error } = await supabase.from('patients').update({ primary_doctor_id: null }).eq('id', patientId);
+      if (error) { alert(`Error: ${error.message}`); }
+      else {
+        alert('Asignación quitada con éxito.');
+        loadAllUsers();
+      }
+    }
+
+    async function openManageModal(patientId, patientName, currentPractitionerName, currentPractitionerId) {
+      document.getElementById('modalPatientId').value = patientId;
+      document.getElementById('modalPatientName').textContent = patientName;
+      document.getElementById('modalCurrentPractitioner').textContent = currentPractitionerName;
+
+      const practitionerSelect = document.getElementById('practitionerSelect');
+      practitionerSelect.innerHTML = allPractitioners.map(p => {
+        const prefix = p.role === 'doctor' ? 'Dr.' : 'Enf.';
+        return `<option value="${p.id}">${prefix} ${p.full_name}</option>`;
+      }).join('');
+      practitionerSelect.insertAdjacentHTML('afterbegin', '<option value="">-- Sin Asignar --</option>');
+      practitionerSelect.value = currentPractitionerId || "";
+      document.getElementById('managePractitionerModal').style.display = 'block';
+    }
+
+    function closeModal() { document.getElementById('managePractitionerModal').style.display = 'none'; }
+
+    async function handlePractitionerAssignment(e) {
+      e.preventDefault();
+      const patientId = document.getElementById('modalPatientId').value;
+      const newPractitionerId = document.getElementById('practitionerSelect').value || null;
+      const { error } = await supabase.from('patients').update({ primary_doctor_id: newPractitionerId }).eq('id', patientId);
+      if (error) { showMessage('modalMessageContainer', `Error: ${error.message}`); }
+      else {
+        showMessage('modalMessageContainer', 'Cuidador reasignado con éxito.', 'success');
+        await loadAllUsers();
+        setTimeout(closeModal, 1500);
+      }
+    }
+
+    function toggleSidebar() { /* ... */ }
+    let userMenuVisible = false;
+    function toggleUserMenu() { /* ... */ }
+  </script>
+  <style>
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1001;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      position: relative;
+    }
+
+    .close-button {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      color: var(--error-color);
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    .btn-tertiary {
+      background-color: var(--warning-color);
+      color: white;
+    }
+
+    .status-badge {
+      background-color: var(--gray);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+    }
+  </style>
+</body>
+
+</html>

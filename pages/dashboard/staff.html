@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Personal - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header">
+        <button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="staff.html"
+           class="nav-item active"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="../inventory/index.html"
+           class="nav-item"><i class="fas fa-boxes-stacked"></i><span>Inventario</span></a>
+        <a href="../laboratory/index.html"
+           class="nav-item"><i class="fas fa-flask"></i><span>Laboratorio</span></a>
+      </nav>
+    </aside>
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div>
+            <span id="userName">Cargando...</span>
+          </div>
+        </div>
+      </header>
+      <main class="content-area">
+        <h1>Bienvenido, Personal</h1>
+        <p>Desde aquí puedes acceder a las herramientas administrativas.</p>
+      </main>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      const profile = await authManager.getUserProfile(user.id);
+      if (profile.role !== 'staff') { document.querySelector('.content-area').innerHTML = '<h1>Acceso Denegado</h1>'; return; }
+
+      // Cargar nombre de usuario
+      const { data: userData } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+      document.getElementById('userName').textContent = userData.full_name;
+      document.getElementById('userInitials').textContent = userData.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    });
+    function toggleSidebar() { }
+    function toggleUserMenu() { }
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Mi Perfil - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/auth.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu"
+           id="navMenu"></nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div><span id="userName"></span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="auth-card"
+             style="margin: auto; max-width: 800px;">
+          <div class="auth-header">
+            <h1>Mi Perfil</h1>
+            <p>Actualiza tu información personal.</p>
+          </div>
+          <form id="profileForm"
+                class="auth-form">
+            <div class="form-row">
+              <div class="form-group"><label for="fullName">Nombre Completo</label><input
+                       type="text"
+                       id="fullName"
+                       name="fullName"
+                       required></div>
+              <div class="form-group"><label for="phone">Teléfono</label><input type="tel"
+                       id="phone"
+                       name="phone"
+                       required></div>
+            </div>
+            <div class="form-group"><label for="email">Correo Electrónico (no se puede
+                cambiar)</label><input type="email"
+                     id="email"
+                     name="email"
+                     readonly
+                     disabled></div>
+
+            <div id="patientFields"
+                 style="display: none;">
+              <hr style="margin: 2rem 0;">
+              <div class="form-row">
+                <div class="form-group"><label for="birthDate">Fecha de Nacimiento</label><input
+                         type="date"
+                         id="birthDate"
+                         name="birthDate"></div>
+                <div class="form-group"><label for="gender">Género</label><select id="gender"
+                          name="gender">
+                    <option value="masculino">Masculino</option>
+                    <option value="femenino">Femenino</option>
+                  </select></div>
+              </div>
+              <div class="form-group"><label for="occupation">Ocupación</label><input type="text"
+                       id="occupation"
+                       name="occupation"></div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="bloodType">Tipo de Sangre</label>
+                  <select id="bloodType"
+                          name="bloodType">
+                    <option value="">Selecciona...</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="rhFactor">Factor RH</label>
+                  <select id="rhFactor"
+                          name="rhFactor">
+                    <option value="">Selecciona...</option>
+                    <option value="positivo">Positivo</option>
+                    <option value="negativo">Negativo</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div id="doctorFields"
+                 style="display: none;">
+            </div>
+
+            <div id="messageContainer"
+                 class="message-container"></div>
+            <button type="submit"
+                    id="updateProfileButton"
+                    class="btn btn-primary btn-block">Guardar Cambios</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let currentUser;
+    let userProfile;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      currentUser = user;
+      await loadUserProfile();
+      await loadRoleSpecificData();
+      loadSidebarMenu(userProfile.role);
+      loadHeaderProfile(userProfile);
+      const updateButton = document.getElementById('updateProfileButton');
+      if (updateButton) updateButton.dataset.originalText = updateButton.textContent;
+    });
+
+    async function loadUserProfile() {
+      try {
+        const { data, error } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
+        if (error) throw error;
+        userProfile = data;
+        document.getElementById('fullName').value = userProfile.full_name || '';
+        document.getElementById('phone').value = userProfile.phone || '';
+        document.getElementById('email').value = userProfile.email || '';
+      } catch (error) {
+        showMessage('messageContainer', `Error al cargar perfil: ${error.message}`);
+      }
+    }
+
+    async function loadRoleSpecificData() {
+      if (userProfile.role === 'patient') {
+        document.getElementById('patientFields').style.display = 'block';
+        const { data: patientData } = await supabase.from('patients').select('*').eq('user_id', currentUser.id).single();
+        if (patientData) {
+          document.getElementById('birthDate').value = patientData.birth_date;
+          document.getElementById('gender').value = patientData.gender;
+          document.getElementById('occupation').value = patientData.occupation;
+          // Cargar datos de sangre
+          document.getElementById('bloodType').value = patientData.blood_type || '';
+          document.getElementById('rhFactor').value = patientData.rh_factor || '';
+        }
+      } else if (userProfile.role === 'doctor') {
+        document.getElementById('doctorFields').style.display = 'block';
+        document.getElementById('specialty').value = userProfile.specialty || '';
+        document.getElementById('licenseNumber').value = userProfile.license_number || '';
+      }
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showLoading('updateProfileButton', true);
+      const formData = new FormData(e.target);
+      const userUpdates = {
+        full_name: formData.get('fullName'),
+        phone: formData.get('phone'),
+      };
+
+      if (userProfile.role === 'doctor') {
+        userUpdates.specialty = formData.get('specialty');
+        userUpdates.license_number = formData.get('licenseNumber');
+      }
+
+      const { error: userError } = await supabase.from('users').update(userUpdates).eq('id', currentUser.id);
+
+      let patientError = null;
+      if (userProfile.role === 'patient') {
+        const patientUpdates = {
+          birth_date: formData.get('birthDate'),
+          gender: formData.get('gender'),
+          occupation: formData.get('occupation'),
+          // Guardar datos de sangre
+          blood_type: formData.get('bloodType'),
+          rh_factor: formData.get('rhFactor')
+        };
+        ({ error: patientError } = await supabase.from('patients').update(patientUpdates).eq('user_id', currentUser.id));
+      }
+
+      if (userError || patientError) {
+        showMessage('messageContainer', `Error al actualizar: ${userError?.message || patientError?.message}`);
+      } else {
+        showMessage('messageContainer', 'Perfil actualizado con éxito.', 'success');
+        document.getElementById('userName').textContent = userUpdates.full_name;
+      }
+      showLoading('updateProfileButton', false);
+    });
+
+    function loadSidebarMenu(role) {
+      const menuContainer = document.getElementById('navMenu');
+      const menuLinks = {
+        doctor: [{ href: '../dashboard/doctor.html', icon: 'fa-home', text: 'Dashboard' }, { href: '../patients/index.html', icon: 'fa-user-injured', text: 'Mis Pacientes' }],
+        patient: [{ href: '../dashboard/patient.html', icon: 'fa-home', text: 'Inicio' }, { href: '../records/my-record.html', icon: 'fa-folder-open', text: 'Mi Expediente' }],
+        admin: [{ href: '../dashboard/admin.html', icon: 'fa-home', text: 'Dashboard' }],
+        nurse: [{ href: '../dashboard/nurse.html', icon: 'fa-home', text: 'Dashboard' }],
+      };
+      const items = menuLinks[role] || menuLinks.patient;
+      menuContainer.innerHTML = items.map(item => `<a href="${item.href}" class="nav-item"><i class="fas ${item.icon}"></i><span>${item.text}</span></a>`).join('');
+      menuContainer.innerHTML += `<a href="index.html" class="nav-item active"><i class="fas fa-user"></i><span>Mi Perfil</span></a>`;
+    }
+
+    function loadHeaderProfile(profile) {
+      const fullName = profile.full_name || 'Usuario';
+      document.getElementById('userName').textContent = fullName;
+      document.getElementById('userInitials').textContent = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+    let userMenuVisible = false;
+    function toggleUserMenu() {
+      userMenuVisible = !userMenuVisible;
+      const existingMenu = document.querySelector('.user-dropdown-menu');
+      if (existingMenu) { existingMenu.remove(); return; }
+      if (userMenuVisible) {
+        const menu = document.createElement('div');
+        menu.className = 'user-dropdown-menu';
+        menu.innerHTML = `<a href="index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a><div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>`;
+        document.querySelector('.user-profile').appendChild(menu);
+      }
+    }
+    async function handleLogout() { await authManager.signOut(); }
+    document.addEventListener('click', (event) => {
+      if (userMenuVisible && !document.querySelector('.user-profile').contains(event.target)) { toggleUserMenu(); }
+    });
+  </script>
+  <style>
+    hr {
+      border: 0;
+      border-top: 1px solid var(--gray-light);
+    }
+
+    .user-profile {
+      position: relative;
+    }
+
+    .user-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      background: white;
+      border: 1px solid var(--gray-light);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .user-menu-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+      color: var(--text-color);
+      text-decoration: none;
+    }
+
+    .user-menu-item:hover {
+      background-color: var(--gray-light);
+    }
+
+    .user-menu-item i {
+      margin-right: 0.75rem;
+      width: 20px;
+      text-align: center;
+    }
+  </style>
+</body>
+
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Editar Paciente - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/auth.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/doctor.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="index.html"
+           class="nav-item active"><i class="fas fa-user-injured"></i><span>Mis Pacientes</span></a>
+        <a href="../appointments/index.html"
+           class="nav-item"><i class="fas fa-calendar-alt"></i><span>Citas</span></a>
+        <a href="../consultations/index.html"
+           class="nav-item"><i class="fas fa-stethoscope"></i><span>Consultas</span></a>
+        <a href="../prescriptions/index.html"
+           class="nav-item"><i class="fas fa-prescription-bottle-alt"></i><span>Recetas</span></a>
+        <a href="../laboratory/index.html"
+           class="nav-item"><i class="fas fa-flask"></i><span>Laboratorio</span></a>
+      </nav>
+    </aside>
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div><span id="userName"></span>
+          </div>
+        </div>
+      </header>
+      <main class="content-area">
+        <div class="auth-card"
+             style="margin: auto; max-width: 800px;">
+          <div class="auth-header">
+            <h1>Editar Información del Paciente</h1>
+          </div>
+          <form id="editPatientForm"
+                class="auth-form">
+            <div class="form-row">
+              <div class="form-group"><label for="fullName">Nombre Completo</label><input
+                       type="text"
+                       id="fullName"
+                       name="fullName"
+                       required></div>
+              <div class="form-group"><label for="phone">Teléfono</label><input type="tel"
+                       id="phone"
+                       name="phone"
+                       required></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label for="birthDate">Fecha de Nacimiento</label><input
+                       type="date"
+                       id="birthDate"
+                       name="birthDate"
+                       required></div>
+              <div class="form-group"><label for="gender">Género</label><select id="gender"
+                        name="gender">
+                  <option value="masculino">Masculino</option>
+                  <option value="femenino">Femenino</option>
+                </select></div>
+            </div>
+            <div class="form-group"><label for="email">Correo Electrónico (no se puede
+                cambiar)</label><input type="email"
+                     id="email"
+                     name="email"
+                     readonly
+                     disabled></div>
+
+            <div id="messageContainer"
+                 class="message-container"></div>
+            <button type="submit"
+                    id="updatePatientButton"
+                    class="btn btn-primary btn-block"
+                    data-original-text="Guardar Cambios">Guardar Cambios</button>
+            <button type="button"
+                    onclick="window.location.href='index.html'"
+                    class="btn btn-secondary btn-block">Cancelar</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let patientUserId;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      patientUserId = urlParams.get('id');
+      if (!patientUserId) {
+        document.querySelector('.content-area').innerHTML = '<h1>Error: No se especificó un paciente.</h1>';
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+
+      await loadDoctorProfile(user);
+      await loadPatientDataForEdit(patientUserId);
+    });
+
+    async function loadDoctorProfile(user) {
+      try {
+        const { data: profile } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+        const fullName = profile.full_name || 'Doctor';
+        document.getElementById('userName').textContent = fullName;
+        document.getElementById('userInitials').textContent = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      } catch (error) { console.error("Error cargando perfil del médico:", error); }
+    }
+
+    async function loadPatientDataForEdit(id) {
+      try {
+        const { data: patient, error } = await supabase.from('patients').select('*, users!patients_user_id_fkey(*)').eq('user_id', id).single();
+        if (error) throw error;
+
+        document.getElementById('fullName').value = patient.users.full_name;
+        document.getElementById('phone').value = patient.users.phone;
+        document.getElementById('email').value = patient.users.email;
+        document.getElementById('birthDate').value = patient.birth_date;
+        document.getElementById('gender').value = patient.gender;
+
+      } catch (error) {
+        showMessage('messageContainer', `Error al cargar datos del paciente: ${error.message}`);
+      }
+    }
+
+    document.getElementById('editPatientForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showLoading('updatePatientButton', true);
+      const formData = new FormData(e.target);
+
+      const { error: userError } = await supabase
+        .from('users')
+        .update({ full_name: formData.get('fullName'), phone: formData.get('phone') })
+        .eq('id', patientUserId);
+
+      const { error: patientError } = await supabase
+        .from('patients')
+        .update({ birth_date: formData.get('birthDate'), gender: formData.get('gender') })
+        .eq('user_id', patientUserId);
+
+      if (userError || patientError) {
+        showMessage('messageContainer', `Error al actualizar: ${userError?.message || patientError?.message}`);
+      } else {
+        showMessage('messageContainer', 'Paciente actualizado con éxito.', 'success');
+        setTimeout(() => window.location.href = 'index.html', 1500);
+      }
+
+      showLoading('updatePatientButton', false);
+    });
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+    let userMenuVisible = false;
+    function toggleUserMenu() {
+      userMenuVisible = !userMenuVisible;
+      const existingMenu = document.querySelector('.user-dropdown-menu');
+      if (existingMenu) { existingMenu.remove(); return; }
+      if (userMenuVisible) {
+        const menu = document.createElement('div');
+        menu.className = 'user-dropdown-menu';
+        menu.innerHTML = `<a href="../profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a><div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>`;
+        document.querySelector('.user-profile').appendChild(menu);
+      }
+    }
+    async function handleLogout() { await authManager.signOut(); }
+    document.addEventListener('click', (event) => {
+      if (userMenuVisible && !document.querySelector('.user-profile').contains(event.target)) { toggleUserMenu(); }
+    });
+  </script>
+  <style>
+    .user-profile {
+      position: relative;
+    }
+
+    .user-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      background: white;
+      border: 1px solid var(--gray-light);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .user-menu-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+      color: var(--text-color);
+      text-decoration: none;
+    }
+
+    .user-menu-item:hover {
+      background-color: var(--gray-light);
+    }
+
+    .user-menu-item i {
+      margin-right: 0.75rem;
+      width: 20px;
+      text-align: center;
+    }
+  </style>
+</body>
+
+</html>

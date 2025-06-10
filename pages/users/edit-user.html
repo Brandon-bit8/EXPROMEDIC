@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Editar Usuario - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/auth.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/admin.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="index.html"
+           class="nav-item active"><i class="fas fa-users"></i><span>Usuarios</span></a>
+        <a href="../reports/index.html"
+           class="nav-item"><i class="fas fa-chart-bar"></i><span>Reportes</span></a>
+        <a href="../settings/index.html"
+           class="nav-item"><i class="fas fa-cog"></i><span>Configuración</span></a>
+      </nav>
+    </aside>
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile">
+            <div class="initials-avatar"
+                 id="userInitials">A</div><span id="userName">Admin</span>
+          </div>
+        </div>
+      </header>
+      <main class="content-area">
+        <div class="auth-card"
+             style="margin: auto; max-width: 800px;">
+          <div class="auth-header">
+            <h1>Editar Perfil de Usuario</h1>
+          </div>
+          <form id="profileForm"
+                class="auth-form">
+            <input type="hidden"
+                   id="userId">
+            <div class="form-row">
+              <div class="form-group"><label for="fullName">Nombre Completo</label><input
+                       type="text"
+                       id="fullName"
+                       name="fullName"
+                       required></div>
+              <div class="form-group"><label for="phone">Teléfono</label><input type="tel"
+                       id="phone"
+                       name="phone"></div>
+            </div>
+            <div class="form-group"><label for="email">Email (No se puede cambiar)</label><input
+                     type="email"
+                     id="email"
+                     name="email"
+                     readonly
+                     disabled></div>
+            <div class="form-group"><label for="role">Rol (No se puede cambiar)</label><input
+                     type="text"
+                     id="role"
+                     name="role"
+                     readonly
+                     disabled
+                     style="text-transform: capitalize;"></div>
+
+            <div id="doctorFields"
+                 style="display: none;">
+              <hr style="margin: 2rem 0;">
+              <h3>Detalles del Doctor</h3>
+              <div class="form-group">
+                <label for="specialty">Especialidad</label>
+                <input type="text"
+                       id="specialty"
+                       name="specialty"
+                       placeholder="Ej: Cardiología">
+              </div>
+            </div>
+
+            <div id="patientFields"
+                 style="display: none;">
+              <hr style="margin: 2rem 0;">
+              <h3>Detalles del Paciente</h3>
+              <div class="form-group"><label for="birthDate">Fecha de Nacimiento</label><input
+                       type="date"
+                       id="birthDate"
+                       name="birthDate"></div>
+            </div>
+
+            <div id="messageContainer"
+                 class="message-container"></div>
+            <button type="submit"
+                    class="btn btn-primary btn-block">Guardar Cambios</button>
+            <button type="button"
+                    onclick="window.location.href='index.html'"
+                    class="btn btn-secondary btn-block">Volver a la Lista</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let userToEditId;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      userToEditId = new URLSearchParams(window.location.search).get('id');
+      if (!userToEditId) {
+        document.querySelector('.content-area').innerHTML = '<h1>Error: No se especificó un usuario.</h1>';
+        return;
+      }
+      await loadUserProfileForEdit();
+      document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+    });
+
+    async function loadUserProfileForEdit() {
+      try {
+        const { data, error } = await supabase.from('users').select('*, patients(*)').eq('id', userToEditId).single();
+        if (error) throw error;
+
+        document.getElementById('userId').value = data.id;
+        document.getElementById('fullName').value = data.full_name || '';
+        document.getElementById('phone').value = data.phone || '';
+        document.getElementById('email').value = data.email || '';
+        document.getElementById('role').value = data.role || '';
+
+        // ======================= INICIO DE CORRECCIÓN =======================
+        // Verificamos el rol en minúsculas para evitar errores de mayúsculas/minúsculas
+        if (data.role && data.role.toLowerCase() === 'doctor') {
+          document.getElementById('doctorFields').style.display = 'block';
+          document.getElementById('specialty').value = data.specialty || '';
+        }
+        // ======================= FIN DE CORRECCIÓN =======================
+
+        if (data.role && data.role.toLowerCase() === 'patient' && data.patients.length > 0) {
+          document.getElementById('patientFields').style.display = 'block';
+          document.getElementById('birthDate').value = data.patients[0].birth_date;
+        }
+      } catch (error) {
+        showMessage('messageContainer', `Error al cargar perfil: ${error.message}`);
+      }
+    }
+
+    async function handleProfileUpdate(e) {
+      e.preventDefault();
+
+      const userUpdates = {
+        full_name: document.getElementById('fullName').value,
+        phone: document.getElementById('phone').value
+      };
+
+      let patientError = null;
+      const userRole = document.getElementById('role').value;
+
+      // Verificamos el rol en minúsculas también al guardar
+      if (userRole && userRole.toLowerCase() === 'doctor') {
+        userUpdates.specialty = document.getElementById('specialty').value;
+      }
+
+      if (userRole && userRole.toLowerCase() === 'patient') {
+        const birthDate = document.getElementById('birthDate').value;
+        ({ error: patientError } = await supabase.from('patients').update({ birth_date: birthDate }).eq('user_id', userToEditId));
+      }
+
+      const { error: userError } = await supabase.from('users').update(userUpdates).eq('id', userToEditId);
+
+      if (userError || patientError) {
+        showMessage('messageContainer', `Error: ${userError?.message || patientError?.message}`, 'error');
+      } else {
+        showMessage('messageContainer', 'Perfil actualizado con éxito.', 'success');
+      }
+    }
+  </script>
+</body>
+
+</html>

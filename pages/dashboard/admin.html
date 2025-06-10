@@ -1,182 +1,105 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
     <title>Dashboard Administrador - MediRecord Pro</title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
-    <link rel="stylesheet" href="../../assets/css/dashboard.css">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Chart.js -->
+    <link rel="stylesheet"
+          href="../../assets/css/style.css">
+    <link rel="stylesheet"
+          href="../../assets/css/dashboard.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Custom JS -->
     <script src="../../assets/js/supabase-config.js"></script>
     <script src="../../assets/js/auth.js"></script>
 </head>
+
 <body>
     <div class="dashboard-container">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <button class="toggle-sidebar" onclick="toggleSidebar()">
-                    ☰
-                </button>
-                <h2>MediRecord Pro</h2>
+        <aside class="sidebar"
+               id="sidebar">
+            <div class="sidebar-header"><button class="toggle-sidebar"
+                        onclick="toggleSidebar()">☰</button>
+                <h2 id="sidebarClinicName">MediRecord Pro</h2>
             </div>
-
             <nav class="nav-menu">
-                <a href="admin.html" class="nav-item active">
-                    <i class="fas fa-home"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="../users/index.html" class="nav-item">
-                    <i class="fas fa-users"></i>
-                    <span>Usuarios</span>
-                </a>
-                <a href="../patients/index.html" class="nav-item">
-                    <i class="fas fa-user-injured"></i>
-                    <span>Pacientes</span>
-                </a>
-                <a href="../records/index.html" class="nav-item">
-                    <i class="fas fa-folder-open"></i>
-                    <span>Expedientes</span>
-                </a>
-                <a href="../appointments/index.html" class="nav-item">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Citas</span>
-                </a>
-                <a href="../reports/index.html" class="nav-item">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Reportes</span>
-                </a>
-                <a href="../settings/index.html" class="nav-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Configuración</span>
-                </a>
+                <a href="admin.html"
+                   class="nav-item active"><i class="fas fa-home"></i><span>Dashboard</span></a>
+                <a href="../users/index.html"
+                   class="nav-item"><i class="fas fa-users"></i><span>Usuarios</span></a>
+                <a href="../reports/index.html"
+                   class="nav-item"><i class="fas fa-chart-bar"></i><span>Reportes</span></a>
+                <a href="../settings/index.html"
+                   class="nav-item"><i class="fas fa-cog"></i><span>Configuración</span></a>
             </nav>
         </aside>
 
-        <!-- Main Content -->
-        <div class="main-content" id="mainContent">
+        <div class="main-content"
+             id="mainContent">
             <header class="dashboard-header">
-                <div class="header-search">
-                    <input type="search" class="search-input" placeholder="Buscar pacientes, médicos, expedientes...">
-                </div>
-
+                <div class="header-search"><input type="search"
+                           class="search-input"
+                           placeholder="Buscar..."></div>
                 <div class="user-menu">
-                    <div class="notifications" onclick="toggleNotifications()">
-                        <i class="fas fa-bell"></i>
-                        <span class="notifications-badge" id="notificationCount">3</span>
-                    </div>
-
-                    <div class="user-profile" onclick="toggleUserMenu()">
-                        <img src="../../assets/img/default-avatar.png" alt="Usuario" class="profile-image" id="userAvatar">
-                        <span id="userName">Administrador</span>
+                    <div class="notifications"><i class="fas fa-bell"></i><span
+                              class="notifications-badge">0</span></div>
+                    <div class="user-profile"
+                         onclick="toggleUserMenu()">
+                        <div class="initials-avatar"
+                             id="userInitials">A</div>
+                        <span id="userName">Admin</span>
                     </div>
                 </div>
             </header>
 
             <main class="content-area">
                 <h1>Dashboard Administrador</h1>
-                <p>Bienvenido al panel de administración de MediRecord Pro</p>
-
-                <!-- Estadísticas Principales -->
                 <div class="dashboard-grid">
                     <div class="dashboard-card">
                         <div class="card-header">
-                            <h3 class="card-title">Total Pacientes</h3>
-                            <i class="fas fa-user-injured" style="color: var(--secondary-color);"></i>
+                            <h3 class="card-title">Total Pacientes</h3><i
+                               class="fas fa-user-injured"></i>
                         </div>
-                        <div class="card-value" id="totalPatients">0</div>
-                        <div class="card-footer">
-                            <span class="status-active">+12% este mes</span>
-                        </div>
+                        <div class="card-value"
+                             id="totalPatients">0</div>
                     </div>
-
                     <div class="dashboard-card">
                         <div class="card-header">
-                            <h3 class="card-title">Médicos Activos</h3>
-                            <i class="fas fa-user-md" style="color: var(--success-color);"></i>
+                            <h3 class="card-title">Médicos Activos</h3><i
+                               class="fas fa-user-md"></i>
                         </div>
-                        <div class="card-value" id="activeDoctors">0</div>
-                        <div class="card-footer">
-                            <span class="status-active">+2 nuevos</span>
-                        </div>
+                        <div class="card-value"
+                             id="activeDoctors">0</div>
                     </div>
-
                     <div class="dashboard-card">
                         <div class="card-header">
-                            <h3 class="card-title">Citas Hoy</h3>
-                            <i class="fas fa-calendar-day" style="color: var(--warning-color);"></i>
+                            <h3 class="card-title">Citas Totales</h3><i
+                               class="fas fa-calendar-day"></i>
                         </div>
-                        <div class="card-value" id="todayAppointments">0</div>
-                        <div class="card-footer">
-                            <span class="status-pending">5 pendientes</span>
-                        </div>
-                    </div>
-
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3 class="card-title">Expedientes</h3>
-                            <i class="fas fa-folder-open" style="color: var(--accent-color);"></i>
-                        </div>
-                        <div class="card-value" id="totalRecords">0</div>
-                        <div class="card-footer">
-                            <span class="status-active">100% digitalizados</span>
-                        </div>
+                        <div class="card-value"
+                             id="totalAppointments">0</div>
                     </div>
                 </div>
 
-                <!-- Gráficos -->
                 <div class="dashboard-grid">
-                    <div class="dashboard-card" style="grid-column: span 2;">
+                    <div class="dashboard-card"
+                         style="grid-column: span 2;">
                         <div class="card-header">
-                            <h3 class="card-title">Consultas por Mes</h3>
+                            <h3 class="card-title">Crecimiento de Usuarios</h3>
                         </div>
-                        <canvas id="consultationsChart" width="400" height="200"></canvas>
+                        <div class="chart-wrapper"
+                             style="height:250px;"><canvas id="consultationsChart"></canvas></div>
                     </div>
-
                     <div class="dashboard-card">
                         <div class="card-header">
-                            <h3 class="card-title">Especialidades Más Solicitadas</h3>
+                            <h3 class="card-title">Distribución de Roles</h3>
                         </div>
-                        <canvas id="specialtiesChart" width="300" height="300"></canvas>
-                    </div>
-                </div>
-
-                <!-- Actividad Reciente -->
-                <div class="table-container">
-                    <div class="card-header" style="padding: 1rem;">
-                        <h3 class="card-title">Actividad Reciente</h3>
-                        <button class="btn btn-primary">Ver Todo</button>
-                    </div>
-                    <table class="dashboard-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Usuario</th>
-                                <th>Acción</th>
-                                <th>Detalles</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recentActivity">
-                            <!-- Los datos se cargarán dinámicamente -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Alertas del Sistema -->
-                <div class="dashboard-card">
-                    <div class="card-header">
-                        <h3 class="card-title">Alertas del Sistema</h3>
-                        <span class="status-badge status-pending">3 alertas</span>
-                    </div>
-                    <div class="alerts-list" id="systemAlerts">
-                        <!-- Las alertas se cargarán dinámicamente -->
+                        <div class="chart-wrapper"
+                             style="height:250px;"><canvas id="rolesChart"></canvas></div>
                     </div>
                 </div>
             </main>
@@ -184,268 +107,133 @@
     </div>
 
     <script>
-        // Variables globales
-        let consultationsChart, specialtiesChart;
-
-        // Inicializar dashboard
         document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html';
+                return;
+            }
+            await loadAdminProfile(user);
             await loadDashboardData();
-            initializeCharts();
-            loadRecentActivity();
-            loadSystemAlerts();
+            // ======================= INICIO DE CORRECCIÓN 2 =======================
+            await loadClinicName();
+            // ======================= FIN DE CORRECCIÓN 2 =======================
         });
 
-        // Cargar datos del dashboard
+        async function loadAdminProfile(user) {
+            try {
+                const { data: profile } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+                const fullName = profile.full_name || 'Admin';
+                document.getElementById('userName').textContent = fullName;
+                const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                document.getElementById('userInitials').textContent = initials;
+            } catch (error) { console.error('Error cargando perfil admin:', error); }
+        }
+
+        // ======================= INICIO DE CORRECCIÓN 3 =======================
+        async function loadClinicName() {
+            const { data, error } = await supabase.from('system_settings').select('clinic_name').eq('id', 1).single();
+            if (data && data.clinic_name) {
+                document.getElementById('sidebarClinicName').textContent = data.clinic_name;
+            }
+        }
+        // ======================= FIN DE CORRECCIÓN 3 =======================
+
         async function loadDashboardData() {
             try {
-                // Cargar estadísticas principales
-                const [patients, doctors, appointments, records] = await Promise.all([
-                    loadPatientCount(),
-                    loadDoctorCount(),
-                    loadTodayAppointments(),
-                    loadRecordCount()
-                ]);
+                const { count: patients } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'patient');
+                const { count: doctors } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'doctor');
+                const { count: appointments } = await supabase.from('appointments').select('*', { count: 'exact', head: true });
 
-                document.getElementById('totalPatients').textContent = patients;
-                document.getElementById('activeDoctors').textContent = doctors;
-                document.getElementById('todayAppointments').textContent = appointments;
-                document.getElementById('totalRecords').textContent = records;
+                document.getElementById('totalPatients').textContent = patients || 0;
+                document.getElementById('activeDoctors').textContent = doctors || 0;
+                document.getElementById('totalAppointments').textContent = appointments || 0;
 
+                initializeCharts({ patients, doctors });
             } catch (error) {
-                console.error('Error loading dashboard data:', error);
+                console.error('Error cargando datos del dashboard:', error);
             }
         }
 
-        // Cargar conteo de pacientes
-        async function loadPatientCount() {
-            try {
-                const { count, error } = await supabase
-                    .from('users')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'patient');
-
-                if (error) throw error;
-                return count || 0;
-            } catch (error) {
-                console.error('Error loading patient count:', error);
-                return 0;
-            }
-        }
-
-        // Cargar conteo de médicos
-        async function loadDoctorCount() {
-            try {
-                const { count, error } = await supabase
-                    .from('users')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', 'doctor')
-                    .eq('status', 'active');
-
-                if (error) throw error;
-                return count || 0;
-            } catch (error) {
-                console.error('Error loading doctor count:', error);
-                return 0;
-            }
-        }
-
-        // Cargar citas de hoy
-        async function loadTodayAppointments() {
-            try {
-                const today = new Date().toISOString().split('T')[0];
-                const { count, error } = await supabase
-                    .from('appointments')
-                    .select('*', { count: 'exact', head: true })
-                    .gte('date_time', today)
-                    .lt('date_time', today + 'T23:59:59');
-
-                if (error) throw error;
-                return count || 0;
-            } catch (error) {
-                console.error('Error loading today appointments:', error);
-                return 0;
-            }
-        }
-
-        // Cargar conteo de expedientes
-        async function loadRecordCount() {
-            try {
-                const { count, error } = await supabase
-                    .from('medical_records')
-                    .select('*', { count: 'exact', head: true });
-
-                if (error) throw error;
-                return count || 0;
-            } catch (error) {
-                console.error('Error loading record count:', error);
-                return 0;
-            }
-        }
-
-        // Inicializar gráficos
-        function initializeCharts() {
-            // Gráfico de consultas por mes
-            const consultationsCtx = document.getElementById('consultationsChart').getContext('2d');
-            consultationsChart = new Chart(consultationsCtx, {
+        function initializeCharts(counts) {
+            new Chart(document.getElementById('consultationsChart').getContext('2d'), {
                 type: 'line',
-                data: {
-                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-                    datasets: [{
-                        label: 'Consultas',
-                        data: [120, 150, 180, 200, 170, 220],
-                        borderColor: 'rgb(52, 152, 219)',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
+                data: { labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'], datasets: [{ label: 'Nuevos Usuarios', data: [20, 25, 33, 45, 42, 50], tension: 0.1 }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: { duration: 0 } }
             });
-
-            // Gráfico de especialidades
-            const specialtiesCtx = document.getElementById('specialtiesChart').getContext('2d');
-            specialtiesChart = new Chart(specialtiesCtx, {
+            new Chart(document.getElementById('rolesChart').getContext('2d'), {
                 type: 'doughnut',
-                data: {
-                    labels: ['Medicina General', 'Cardiología', 'Pediatría', 'Neurología'],
-                    datasets: [{
-                        data: [35, 25, 20, 20],
-                        backgroundColor: [
-                            'rgb(52, 152, 219)',
-                            'rgb(46, 204, 113)',
-                            'rgb(241, 196, 15)',
-                            'rgb(231, 76, 60)'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false
-                }
+                data: { labels: ['Pacientes', 'Médicos'], datasets: [{ data: [counts.patients, counts.doctors] }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: { duration: 0 } }
             });
         }
 
-        // Cargar actividad reciente
-        function loadRecentActivity() {
-            const activities = [
-                {
-                    date: '2024-01-15 10:30',
-                    user: 'Dr. García',
-                    action: 'Consulta registrada',
-                    details: 'Paciente: María López',
-                    status: 'Completado'
-                },
-                {
-                    date: '2024-01-15 09:15',
-                    user: 'Enf. Rodríguez',
-                    action: 'Signos vitales',
-                    details: 'Paciente: Juan Pérez',
-                    status: 'Completado'
-                },
-                {
-                    date: '2024-01-15 08:45',
-                    user: 'Dr. Martínez',
-                    action: 'Nuevo expediente',
-                    details: 'Paciente: Ana Silva',
-                    status: 'Pendiente'
-                }
-            ];
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
 
-            const tbody = document.getElementById('recentActivity');
-            tbody.innerHTML = activities.map(activity => `
-                <tr>
-                    <td>${activity.date}</td>
-                    <td>${activity.user}</td>
-                    <td>${activity.action}</td>
-                    <td>${activity.details}</td>
-                    <td><span class="status-badge ${activity.status === 'Completado' ? 'status-active' : 'status-pending'}">${activity.status}</span></td>
-                </tr>
-            `).join('');
-        }
-
-        // Cargar alertas del sistema
-        function loadSystemAlerts() {
-            const alerts = [
-                {
-                    type: 'warning',
-                    message: 'Servidor de respaldos requiere mantenimiento',
-                    time: 'Hace 2 horas'
-                },
-                {
-                    type: 'info',
-                    message: 'Nueva actualización disponible',
-                    time: 'Hace 1 día'
-                },
-                {
-                    type: 'error',
-                    message: 'Error en sincronización de laboratorio',
-                    time: 'Hace 3 horas'
-                }
-            ];
-
-            const alertsContainer = document.getElementById('systemAlerts');
-            alertsContainer.innerHTML = alerts.map(alert => `
-                <div class="alert alert-${alert.type}">
-                    <div class="alert-content">
-                        <strong>${alert.message}</strong>
-                        <small>${alert.time}</small>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Función para alternar el sidebar
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-        }
-
-        // Función para alternar notificaciones
-        function toggleNotifications() {
-            // Implementar panel de notificaciones
-            console.log('Toggle notifications');
-        }
-
-        // Función para alternar menú de usuario
+        let userMenuVisible = false;
         function toggleUserMenu() {
-            // Implementar menú de usuario
-            console.log('Toggle user menu');
+            userMenuVisible = !userMenuVisible;
+            const existingMenu = document.querySelector('.user-dropdown-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+                return;
+            }
+            if (userMenuVisible) {
+                const menu = document.createElement('div');
+                menu.className = 'user-dropdown-menu';
+                menu.innerHTML = `
+                    <a href="../profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a>
+                    <div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>
+                `;
+                document.querySelector('.user-profile').appendChild(menu);
+            }
         }
+        async function handleLogout() { await authManager.signOut(); }
+        document.addEventListener('click', function (event) {
+            const userProfile = document.querySelector('.user-profile');
+            if (userMenuVisible && userProfile && !userProfile.contains(event.target)) {
+                toggleUserMenu();
+            }
+        });
     </script>
-
     <style>
-        .alerts-list .alert {
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            border-radius: 4px;
-            border-left: 4px solid;
+        .user-profile {
+            position: relative;
         }
 
-        .alert-warning {
-            background-color: #fff3cd;
-            border-color: var(--warning-color);
+        .user-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 5px);
+            right: 0;
+            background: white;
+            border: 1px solid var(--gray-light);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 200px;
+            overflow: hidden;
         }
 
-        .alert-info {
-            background-color: #d1ecf1;
-            border-color: var(--secondary-color);
+        .user-menu-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+            color: var(--text-color);
+            text-decoration: none;
         }
 
-        .alert-error {
-            background-color: #f8d7da;
-            border-color: var(--error-color);
+        .user-menu-item:hover {
+            background-color: var(--gray-light);
         }
 
-        .alert-content small {
-            display: block;
-            color: var(--gray);
-            margin-top: 0.25rem;
+        .user-menu-item i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
         }
     </style>
 </body>
+
 </html>

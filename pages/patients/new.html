@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Nuevo Paciente - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/auth.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/doctor.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="index.html"
+           class="nav-item active"><i class="fas fa-user-injured"></i><span>Mis Pacientes</span></a>
+        <a href="../appointments/index.html"
+           class="nav-item"><i class="fas fa-calendar-alt"></i><span>Citas</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div><span id="userName"></span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="dashboard-card"
+             style="margin-bottom: 2rem;">
+          <h2>Asignar Paciente Existente</h2>
+          <div class="form-group">
+            <label for="patientSearchInput">Buscar paciente por nombre...</label>
+            <input type="search"
+                   id="patientSearchInput"
+                   class="search-input"
+                   placeholder="Escribe para buscar...">
+          </div>
+          <div id="searchResults"
+               class="search-results-container"></div>
+        </div>
+        <div class="auth-card"
+             style="margin: auto; max-width: 800px;">
+          <div class="auth-header">
+            <h1>O Registrar Paciente Nuevo</h1>
+            <p>Los datos se guardarán y el paciente será asignado a ti.</p>
+          </div>
+          <form id="newPatientForm"
+                class="auth-form">
+            <div class="form-row">
+              <div class="form-group"><label for="firstName">Nombre(s)</label><input type="text"
+                       id="firstName"
+                       name="firstName"
+                       required></div>
+              <div class="form-group"><label for="lastName">Apellidos</label><input type="text"
+                       id="lastName"
+                       name="lastName"
+                       required></div>
+            </div>
+            <div class="form-group"><label for="email">Correo Electrónico</label><input type="email"
+                     id="email"
+                     name="email"
+                     required></div>
+            <div class="form-group"><label for="phone">Teléfono</label><input type="tel"
+                     id="phone"
+                     name="phone"
+                     required></div>
+            <div class="form-group"><label for="birthDate">Fecha de Nacimiento</label><input
+                     type="date"
+                     id="birthDate"
+                     name="birthDate"
+                     required></div>
+            <div class="form-group"><label for="gender">Género</label><select id="gender"
+                      name="gender">
+                <option value="masculino">Masculino</option>
+                <option value="femenino">Femenino</option>
+              </select></div>
+            <div class="form-group"><label for="password">Contraseña Temporal para el
+                Paciente</label><input type="password"
+                     id="password"
+                     name="password"
+                     required></div>
+
+            <div id="messageContainer"
+                 class="message-container"></div>
+            <button type="submit"
+                    id="createPatientButton"
+                    class="btn btn-primary btn-block"
+                    data-original-text="Crear Paciente">Crear Paciente</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let currentDoctor;
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      currentDoctor = user;
+
+      await loadDoctorProfile(user);
+
+      // Listener para el nuevo buscador de pacientes
+      document.getElementById('patientSearchInput').addEventListener('input', (e) => searchUnassignedPatients(e.target.value));
+
+      // Listener para el formulario de crear paciente (sin cambios)
+      document.getElementById('newPatientForm').addEventListener('submit', createNewPatient);
+    });
+
+    async function loadDoctorProfile(user) { /* ...código sin cambios... */ }
+
+    // --- NUEVAS FUNCIONES PARA BUSCAR Y ASIGNAR PACIENTES ---
+    async function searchUnassignedPatients(searchTerm) {
+      const resultsContainer = document.getElementById('searchResults');
+      if (searchTerm.length < 3) {
+        resultsContainer.innerHTML = '';
+        return;
+      }
+      resultsContainer.innerHTML = '<p>Buscando...</p>';
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('id, users!patients_user_id_fkey(full_name)')
+          .is('primary_doctor_id', null) // Filtra solo pacientes SIN doctor
+          .ilike('users.full_name', `%${searchTerm}%`); // Busca por nombre
+
+        if (error) throw error;
+
+        if (data.length === 0) {
+          resultsContainer.innerHTML = '<p>No se encontraron pacientes sin asignar con ese nombre.</p>';
+          return;
+        }
+
+        resultsContainer.innerHTML = data.map(patient => `
+                    <div class="search-result-item">
+                        <span>${patient.users.full_name}</span>
+                        <button class="btn btn-sm btn-secondary" onclick="assignPatient('${patient.id}')">Asignármelo</button>
+                    </div>
+                `).join('');
+
+      } catch (error) {
+        resultsContainer.innerHTML = `<p class="message error">Error: ${error.message}</p>`;
+      }
+    }
+
+    async function assignPatient(patientId) {
+      if (!confirm('¿Estás seguro de que quieres asignarte este paciente?')) return;
+      try {
+        const { error } = await supabase
+          .from('patients')
+          .update({ primary_doctor_id: currentDoctor.id })
+          .eq('id', patientId);
+
+        if (error) throw error;
+        alert('¡Paciente asignado con éxito!');
+        window.location.href = 'index.html';
+      } catch (error) {
+        alert(`Error al asignar el paciente: ${error.message}`);
+      }
+    }
+
+    // --- Función para crear paciente (lógica anterior sin cambios) ---
+    async function createNewPatient(e) {
+      e.preventDefault();
+      showLoading('createPatientButton', true);
+      const formData = new FormData(e.target);
+
+      // INICIO DE CORRECCIÓN: Se añaden todos los campos al objeto
+      const patientUserData = {
+        full_name: `${formData.get('firstName')} ${formData.get('lastName')}`,
+        phone: formData.get('phone'),
+        role: 'patient',
+        birth_date: formData.get('birthDate'),
+        gender: formData.get('gender'),
+        marital_status: formData.get('maritalStatus'),
+        occupation: formData.get('occupation'),
+        blood_type: formData.get('bloodType'),
+        rh_factor: formData.get('rhFactor')
+      };
+      // FIN DE CORRECCIÓN
+
+      const result = await authManager.signUp(formData.get('email'), formData.get('password'), patientUserData);
+      if (result.success && result.data.user) {
+        const newPatientUserId = result.data.user.id;
+        const { data: patientProfile } = await supabase.from('patients').select('id').eq('user_id', newPatientUserId).single();
+        const { error: updateError } = await supabase.from('patients').update({ primary_doctor_id: currentDoctor.id }).eq('id', patientProfile.id);
+        if (updateError) {
+          showMessage('messageContainer', `Error al asignar el doctor: ${updateError.message}`);
+        } else {
+          showMessage('messageContainer', 'Paciente creado y asignado exitosamente.', 'success');
+          setTimeout(() => { window.location.href = 'index.html'; }, 2000);
+        }
+      } else {
+        showMessage('messageContainer', `Error creando el paciente: ${result.error?.message || 'Error desconocido'}`);
+      }
+      showLoading('createPatientButton', false);
+    }
+
+    // Funciones de UI...
+    function toggleSidebar() { /* ... */ }
+    let userMenuVisible = false;
+    function toggleUserMenu() { /* ... */ }
+    async function handleLogout() { /* ... */ }
+  </script>
+  <style>
+    .search-results-container {
+      margin-top: 1rem;
+    }
+
+    .search-result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      border: 1px solid var(--gray-light);
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</body>
+
+</html>

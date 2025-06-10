@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Enfermería - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="nurse.html"
+           class="nav-item active"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="../patients/index.html"
+           class="nav-item"><i class="fas fa-user-injured"></i><span>Pacientes</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="header-search"><input type="search"
+                 class="search-input"
+                 placeholder="Buscar pacientes..."></div>
+        <div class="user-menu">
+          <div class="notifications"><i class="fas fa-bell"></i><span
+                  class="notifications-badge">0</span></div>
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div>
+            <span id="userName">Cargando...</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <h1>Dashboard de Enfermería</h1>
+        <div class="dashboard-grid">
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3 class="card-title">Pacientes en Espera</h3><i class="fas fa-clock"></i>
+            </div>
+            <div class="card-value"
+                 id="waitingPatients">0</div>
+          </div>
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3 class="card-title">Vitales Registrados Hoy</h3><i class="fas fa-heartbeat"></i>
+            </div>
+            <div class="card-value"
+                 id="vitalsToday">0</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <div class="card-header"
+               style="padding: 1rem;">
+            <h3 class="card-title">Lista de Tareas</h3>
+          </div>
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Paciente</th>
+                <th>Tarea</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tasksTable">
+              <tr>
+                <td colspan="4"
+                    style="text-align: center;">No hay tareas pendientes.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html';
+        return;
+      }
+      await loadNurseData(user);
+    });
+
+    async function loadNurseData(user) {
+      try {
+        const { data: profile, error } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+        if (error) throw error;
+
+        const fullName = profile.full_name || 'Enfermero/a';
+        document.getElementById('userName').textContent = fullName;
+        const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        document.getElementById('userInitials').textContent = initials;
+
+        await loadNurseStats();
+
+      } catch (error) { console.error('Error cargando datos:', error); }
+    }
+
+    async function loadNurseStats() {
+      const today = new Date().toISOString().slice(0, 10);
+      const { count: waiting } = await supabase.from('appointments').select('*', { count: 'exact', head: true }).eq('status', 'scheduled').gte('date_time', `${today}T00:00:00`);
+      const { count: vitals } = await supabase.from('vital_signs').select('*', { count: 'exact', head: true }).gte('date_recorded', `${today}T00:00:00`);
+
+      document.getElementById('waitingPatients').textContent = waiting || 0;
+      document.getElementById('vitalsToday').textContent = vitals || 0;
+    }
+
+    // --- INICIO DE CÓDIGO AÑADIDO/CORREGIDO ---
+    function loadSidebarMenu(role) {
+      const menuContainer = document.getElementById('navMenu');
+      const menuLinks = {
+        nurse: [
+          { href: 'nurse.html', icon: 'fa-home', text: 'Dashboard' },
+          { href: '../patients/index.html', icon: 'fa-user-injured', text: 'Pacientes' },
+          { href: '../laboratory/index.html', icon: 'fa-flask', text: 'Laboratorio' },
+          { href: '../profile/index.html', icon: 'fa-user', text: 'Mi Perfil' }
+        ]
+      };
+      const items = menuLinks[role] || [];
+      menuContainer.innerHTML = items.map(item => {
+        const isActive = window.location.pathname.endsWith(item.href) ? 'active' : '';
+        return `<a href="${item.href}" class="nav-item ${isActive}"><i class="fas ${item.icon}"></i><span>${item.text}</span></a>`;
+      }).join('');
+    }
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+    let userMenuVisible = false;
+    function toggleUserMenu() {
+      userMenuVisible = !userMenuVisible;
+      const existingMenu = document.querySelector('.user-dropdown-menu');
+      if (existingMenu) { existingMenu.remove(); return; }
+      if (userMenuVisible) {
+        const menu = document.createElement('div');
+        menu.className = 'user-dropdown-menu';
+        menu.innerHTML = `<a href="../profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a><div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>`;
+        document.querySelector('.user-profile').appendChild(menu);
+      }
+    }
+    async function handleLogout() { await authManager.signOut(); }
+    // --- FIN DE CÓDIGO AÑADIDO/CORREGIDO ---
+  </script>
+  <style>
+    .user-profile {
+      position: relative;
+    }
+
+    .user-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      background: white;
+      border: 1px solid var(--gray-light);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .user-menu-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+      color: var(--text-color);
+      text-decoration: none;
+    }
+
+    .user-menu-item:hover {
+      background-color: var(--gray-light);
+    }
+
+    .user-menu-item i {
+      margin-right: 0.75rem;
+      width: 20px;
+      text-align: center;
+    }
+  </style>
+</body>
+
+</html>

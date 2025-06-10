@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de Citas - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+    </aside>
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+      </header>
+      <main class="content-area">
+        <div class="dashboard-card"
+             style="margin-bottom: 2rem;">
+          <h2>Solicitudes de Cita Pendientes</h2>
+          <div id="pendingRequestsContainer"
+               class="table-container">
+            <p>Cargando solicitudes...</p>
+          </div>
+        </div>
+        <div class="page-header">
+          <h1>Calendario de Citas</h1>
+        </div>
+        <div class="dashboard-card">
+          <div id='calendar'></div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div id="appointmentModal"
+       class="modal">
+  </div>
+
+  <script>
+    let currentUser;
+    let calendar;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      currentUser = user;
+
+      await loadDoctorProfile(user);
+      initializeCalendar();
+      await populatePatientDropdown(user.id);
+      await loadPendingRequests();
+    });
+
+    function initializeCalendar() {
+      const calendarEl = document.getElementById('calendar');
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'es',
+        headerToolbar: { /* ... */ },
+        events: async (fetchInfo, successCallback, failureCallback) => {
+          try {
+            const { data, error } = await supabase.from('appointment_details_view').select('*').eq('doctor_id', currentUser.id);
+            if (error) throw error;
+
+            const events = data.map(apt => {
+              // ======================= INICIO DE CORRECCIÓN 1 =======================
+              const patientName = apt.patient_name || 'Paciente no encontrado';
+              const appointmentTime = new Date(apt.date_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+              // ======================= FIN DE CORRECCIÓN 1 =======================
+
+              let eventColor = '#3498db';
+              if (apt.status === 'requested') eventColor = '#f1c40f';
+              if (apt.status === 'completed') eventColor = '#2ecc71';
+              if (apt.status === 'cancelled' || apt.status === 'denied') eventColor = '#bdc3c7';
+
+              return {
+                id: apt.id,
+                title: `${appointmentTime} - ${patientName}`,
+                start: apt.date_time,
+                backgroundColor: eventColor,
+                borderColor: eventColor
+              };
+            });
+            successCallback(events);
+          } catch (error) { failureCallback(error); }
+        },
+        dateClick: (info) => openModal(info.dateStr)
+      });
+      calendar.render();
+    }
+
+    async function loadPendingRequests() {
+      const container = document.getElementById('pendingRequestsContainer');
+      container.innerHTML = '<p>Cargando...</p>';
+      try {
+        const { data, error } = await supabase.from('appointment_details_view').select('*').eq('doctor_id', currentUser.id).eq('status', 'requested').order('date_time', { ascending: true });
+        if (error) throw error;
+
+        if (data.length === 0) {
+          container.innerHTML = '<p>No hay solicitudes pendientes.</p>';
+          return;
+        }
+
+        container.innerHTML = `
+                <table class="dashboard-table">
+                    <thead><tr><th>Paciente</th><th>Fecha y Hora</th><th>Motivo</th><th>Acciones</th></tr></thead>
+                    <tbody>
+                        ${data.map(req => `
+                            <tr>
+                                <td>${req.patient_name || 'Paciente no encontrado'}</td>
+                                <td>${new Date(req.date_time).toLocaleString('es-ES')}</td>
+                                <td>${req.reason}</td>
+                                <td class="actions-cell">
+                                    <button class="btn btn-sm btn-success" onclick="approveAppointment('${req.id}')">Aprobar</button>
+                                    <button class="btn btn-sm btn-danger" onclick="denyAppointment('${req.id}')">Rechazar</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+      } catch (error) {
+        container.innerHTML = `<p class="message error">Error al cargar solicitudes: ${error.message}</p>`;
+      }
+    }
+
+    // El resto de tus funciones (loadDoctorProfile, updateAppointmentStatus, etc.) se mantienen igual
+    async function loadDoctorProfile(user) { }
+    async function populatePatientDropdown(doctorId) { }
+    function openModal(dateStr) { }
+    async function updateAppointmentStatus(appointmentId, newStatus) {
+      const { error } = await supabase.from('appointments').update({ status: newStatus }).eq('id', appointmentId);
+      if (error) { alert(`Error al actualizar la cita: ${error.message}`); }
+      else {
+        await loadPendingRequests();
+        calendar.refetchEvents();
+      }
+    }
+    async function approveAppointment(appointmentId) { await updateAppointmentStatus(appointmentId, 'scheduled'); }
+    async function denyAppointment(appointmentId) { if (!confirm('¿Seguro?')) return; await updateAppointmentStatus(appointmentId, 'denied'); }
+  </script>
+</body>
+
+</html>

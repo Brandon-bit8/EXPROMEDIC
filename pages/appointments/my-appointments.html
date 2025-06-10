@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Mis Citas - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>Mi Portal de Salud</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/patient.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Inicio</span></a>
+        <a href="../records/my-record.html"
+           class="nav-item"><i class="fas fa-folder-open"></i><span>Mi Expediente</span></a>
+        <a href="my-appointments.html"
+           class="nav-item active"><i class="fas fa-calendar-alt"></i><span>Mis Citas</span></a>
+        <a href="../results/index.html"
+           class="nav-item"><i class="fas fa-file-medical-alt"></i><span>Resultados</span></a>
+        <a href="../medications/my-medications.html"
+           class="nav-item"><i class="fas fa-pills"></i><span>Medicamentos</span></a>
+        <a href="../profile/index.html"
+           class="nav-item"><i class="fas fa-user"></i><span>Mi Perfil</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div><span id="userName"></span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1>Mis Citas Médicas</h1>
+          <button class="btn btn-primary"
+                  onclick="openRequestModal()"><i class="fas fa-plus"></i> Solicitar Nueva
+            Cita</button>
+        </div>
+
+        <div class="dashboard-card">
+          <h2>Próximas Citas</h2>
+          <div id="upcomingAppointments"
+               class="appointments-container">
+            <p>Cargando citas...</p>
+          </div>
+        </div>
+
+        <div class="dashboard-card"
+             style="margin-top: 2rem;">
+          <h2>Historial de Citas</h2>
+          <div id="pastAppointments"
+               class="appointments-container">
+            <p>Cargando historial...</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="requestAppointmentModal"
+       class="modal">
+    <div class="modal-content">
+      <span class="close-button"
+            onclick="closeModal()">&times;</span>
+      <h2>Solicitar Nueva Cita</h2>
+      <form id="requestAppointmentForm"
+            class="auth-form">
+        <div class="form-group">
+          <label>Tu Médico Asignado</label>
+          <input type="text"
+                 id="assignedDoctorName"
+                 disabled>
+          <input type="hidden"
+                 id="assignedDoctorId">
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="appointmentDate">Fecha Deseada</label><input
+                   type="date"
+                   id="appointmentDate"
+                   name="appointmentDate"
+                   required></div>
+          <div class="form-group"><label for="appointmentTime">Hora Deseada</label><input
+                   type="time"
+                   id="appointmentTime"
+                   name="appointmentTime"
+                   required></div>
+        </div>
+        <div class="form-group"><label for="appointmentReason">Motivo de la Cita</label><textarea
+                    id="appointmentReason"
+                    name="appointmentReason"
+                    rows="3"
+                    required></textarea></div>
+        <div id="messageContainer"
+             class="message-container"></div>
+        <button type="submit"
+                id="saveRequestButton"
+                class="btn btn-primary btn-block"
+                data-original-text="Enviar Solicitud">Enviar Solicitud</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let patientProfile;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      await loadPatientProfile(user.id);
+      document.getElementById('requestAppointmentForm').addEventListener('submit', handleRequestSubmit);
+    });
+
+    async function loadPatientProfile(userId) {
+      try {
+        const { data, error } = await supabase.from('patient_details_view').select('*').eq('user_id', userId).single();
+        if (error) throw error;
+        patientProfile = data;
+        document.getElementById('userName').textContent = patientProfile.full_name;
+        document.getElementById('userInitials').textContent = (patientProfile.full_name || 'P').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        await loadAppointments(patientProfile.id);
+      } catch (error) {
+        console.error("Error cargando perfil del paciente:", error);
+      }
+    }
+
+    async function loadAppointments(patientInternalId) {
+      const upcomingContainer = document.getElementById('upcomingAppointments');
+      const pastContainer = document.getElementById('pastAppointments');
+      upcomingContainer.innerHTML = '<p>Cargando...</p>';
+      pastContainer.innerHTML = '<p>Cargando...</p>';
+
+      try {
+        const { data, error } = await supabase.from('appointments').select('*, doctor_id(full_name)').eq('patient_id', patientInternalId).order('date_time', { ascending: false });
+        if (error) throw error;
+
+        const now = new Date();
+        const upcoming = data.filter(apt => new Date(apt.date_time) >= now);
+        const past = data.filter(apt => new Date(apt.date_time) < now);
+
+        renderAppointments(upcoming, upcomingContainer, 'No tienes citas próximas.');
+        renderAppointments(past, pastContainer, 'No tienes citas anteriores.');
+
+      } catch (error) {
+        console.error("Error cargando citas:", error);
+        upcomingContainer.innerHTML = '<p class="message error">Error al cargar citas.</p>';
+        pastContainer.innerHTML = '<p class="message error">Error al cargar historial.</p>';
+      }
+    }
+
+    function renderAppointments(appointments, container, emptyMessage) {
+      if (appointments.length === 0) {
+        container.innerHTML = `<p>${emptyMessage}</p>`;
+        return;
+      }
+      container.innerHTML = appointments.map(apt => {
+        const date = new Date(apt.date_time);
+        const statusClass = apt.status === 'scheduled' ? 'status-pending' : (apt.status === 'completed' ? 'status-active' : 'status-inactive');
+        return `
+                    <div class="appointment-card">
+                        <div class="appointment-card-date">
+                            <span class="day">${date.getDate()}</span>
+                            <span class="month">${date.toLocaleString('es-ES', { month: 'short' })}</span>
+                        </div>
+                        <div class="appointment-card-details">
+                            <strong>${apt.reason || 'Cita Médica'}</strong>
+                            <span>${date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} a las ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <small>Con: Dr(a). ${apt.doctor_id?.full_name || 'Por confirmar'}</small>
+                        </div>
+                        <div class="appointment-card-status">
+                             <span class="status-badge ${statusClass}">${apt.status}</span>
+                        </div>
+                    </div>
+                `;
+      }).join('');
+    }
+
+    function openRequestModal() {
+      if (!patientProfile.primary_doctor_id) {
+        alert('No tienes un médico principal asignado. Por favor, contacta a la administración.');
+        return;
+      }
+      document.getElementById('assignedDoctorName').value = patientProfile.doctor_name;
+      document.getElementById('assignedDoctorId').value = patientProfile.primary_doctor_id;
+      document.getElementById('requestAppointmentModal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('requestAppointmentModal').style.display = 'none';
+    }
+
+    async function handleRequestSubmit(e) {
+      e.preventDefault();
+      showLoading('saveRequestButton', true);
+      const formData = new FormData(e.target);
+      const newAppointment = {
+        patient_id: patientProfile.id,
+        doctor_id: document.getElementById('assignedDoctorId').value,
+        date_time: `${formData.get('appointmentDate')}T${formData.get('appointmentTime')}`,
+        status: 'requested', // Cambiado de 'scheduled' a 'requested'
+        reason: formData.get('appointmentReason')
+      };
+      const { error } = await supabase.from('appointments').insert(newAppointment);
+      if (error) {
+        showMessage('messageContainer', `Error al enviar la solicitud: ${error.message}`);
+      } else {
+        showMessage('messageContainer', 'Solicitud enviada con éxito.', 'success');
+        await loadAppointments(patientProfile.id);
+        setTimeout(closeModal, 2000);
+      }
+      showLoading('saveRequestButton', false);
+    }
+
+    // --- Funciones de UI ---
+    function toggleSidebar() { /* ... */ }
+    let userMenuVisible = false;
+    function toggleUserMenu() { /* ... */ }
+    async function handleLogout() { /* ... */ }
+    window.onclick = function (event) {
+      if (event.target == document.getElementById('requestAppointmentModal')) { closeModal(); }
+    }
+  </script>
+  <style>
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1001;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+    }
+
+    .close-button {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .appointment-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--white);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border-left: 5px solid var(--secondary-color);
+    }
+
+    .appointment-card-date {
+      text-align: center;
+      color: var(--primary-color);
+    }
+
+    .appointment-card-date .day {
+      font-size: 2rem;
+      font-weight: bold;
+      display: block;
+    }
+
+    .appointment-card-date .month {
+      font-size: 1rem;
+      text-transform: uppercase;
+    }
+
+    .appointment-card-details {
+      flex-grow: 1;
+    }
+
+    .appointment-card-details strong {
+      display: block;
+      font-size: 1.1rem;
+    }
+
+    .appointment-card-details span,
+    .appointment-card-details small {
+      color: var(--gray);
+    }
+  </style>
+</body>
+
+</html>

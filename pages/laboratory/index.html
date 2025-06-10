@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Laboratorio - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu"
+           id="navMenu"></nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div><span id="userName"></span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1>Gestión de Laboratorio</h1>
+          <button id="toggleFormButton"
+                  class="btn btn-primary"
+                  style="display: none;"><i class="fas fa-plus"></i> Ordenar Nuevo Estudio</button>
+        </div>
+
+        <div id="newOrderContainer"
+             class="dashboard-card"
+             style="display: none; margin-bottom: 2rem;">
+          <h2>Nueva Orden de Laboratorio</h2>
+          <form id="newOrderForm"
+                class="auth-form">
+            <div class="form-row">
+              <div class="form-group"><label for="patientSelect">Paciente</label><select
+                        id="patientSelect"
+                        name="patientId"
+                        required></select></div>
+              <div class="form-group"><label for="testDate">Fecha de la Orden</label><input
+                       type="date"
+                       id="testDate"
+                       name="testDate"
+                       required></div>
+            </div>
+            <div class="form-group"><label for="testType">Tipo de Estudio</label><input type="text"
+                     id="testType"
+                     name="testType"
+                     placeholder="Ej: Biometría Hemática Completa"
+                     required></div>
+            <div class="form-group"><label for="notes">Notas / Indicaciones</label><textarea
+                        id="notes"
+                        name="notes"
+                        rows="3"
+                        placeholder="Ej: Paciente en ayunas de 8 horas."></textarea></div>
+            <div id="messageContainer"
+                 class="message-container"></div>
+            <button type="submit"
+                    id="saveOrderButton"
+                    class="btn btn-primary btn-block"
+                    data-original-text="Guardar Orden">Guardar Orden</button>
+          </form>
+        </div>
+
+        <h2>Historial de Órdenes</h2>
+        <div class="table-container">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Fecha de Orden</th>
+                <th>Paciente</th>
+                <th>Estudio Solicitado</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody"></tbody>
+          </table>
+        </div>
+        <input type="file"
+               id="fileUploader"
+               style="display: none;"
+               accept=".pdf,.jpg,.jpeg,.png">
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let currentUser;
+    let currentUserProfile;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      currentUser = user;
+
+      await loadUserProfile();
+      loadSidebarMenu(currentUserProfile.role);
+
+      if (currentUserProfile.role === 'doctor') {
+        document.getElementById('toggleFormButton').style.display = 'block';
+        await populatePatientDropdown(currentUser.id);
+        document.getElementById('newOrderForm').addEventListener('submit', saveNewOrder);
+      }
+
+      await loadLabOrders();
+      document.getElementById('fileUploader').addEventListener('change', handleFileUpload);
+      document.getElementById('toggleFormButton').addEventListener('click', () => {
+        const formContainer = document.getElementById('newOrderContainer');
+        formContainer.style.display = formContainer.style.display === 'none' ? 'block' : 'none';
+      });
+    });
+
+    async function loadUserProfile() {
+      try {
+        const { data, error } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
+        if (error) throw error;
+        currentUserProfile = data;
+        document.getElementById('userName').textContent = data.full_name || 'Usuario';
+        document.getElementById('userInitials').textContent = (data.full_name || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      } catch (error) { console.error("Error cargando perfil:", error); }
+    }
+
+    async function populatePatientDropdown(doctorId) {
+      const select = document.getElementById('patientSelect');
+      select.innerHTML = '<option value="">Cargando pacientes...</option>';
+      try {
+        const { data, error } = await supabase.from('patients').select(`id, users!patients_user_id_fkey(full_name)`).eq('primary_doctor_id', doctorId);
+        if (error) throw error;
+        select.innerHTML = '<option value="">-- Seleccionar Paciente --</option>';
+        select.innerHTML += data.map(p => `<option value="${p.id}">${p.users.full_name}</option>`).join('');
+      } catch (error) { select.innerHTML = '<option value="">No se encontraron pacientes</option>'; }
+    }
+
+    async function loadLabOrders() {
+      const tableBody = document.getElementById('ordersTableBody');
+      tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando órdenes...</td></tr>';
+      try {
+        let query = supabase.from('laboratory_results').select(`*, patients!inner(users!patients_user_id_fkey(full_name))`);
+        if (currentUserProfile.role === 'doctor') {
+          query = query.eq('ordered_by', currentUser.id);
+        }
+        const { data, error } = await query.order('test_date', { ascending: false });
+
+        if (error) throw error;
+        renderLabOrders(data);
+      } catch (error) {
+        console.error("Error cargando órdenes:", error);
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Error al cargar las órdenes.</td></tr>';
+      }
+    }
+
+    function renderLabOrders(orders) {
+      const tableBody = document.getElementById('ordersTableBody');
+      if (!orders || orders.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay órdenes de laboratorio.</td></tr>';
+        return;
+      }
+      tableBody.innerHTML = orders.map(order => {
+        const patientName = order.patients?.users?.full_name || 'N/A';
+        const statusClass = order.status === 'pending' ? 'status-pending' : 'status-active';
+        let actionButton = '';
+
+        if ((currentUserProfile.role === 'nurse' || currentUserProfile.role === 'staff') && order.status === 'pending') {
+          actionButton = `<button class="btn btn-sm btn-primary" title="Subir Resultado" onclick="triggerFileUpload('${order.id}', '${order.patient_id}')"><i class="fas fa-upload"></i> Subir</button>`;
+        } else if (order.file_url) {
+          actionButton = `<a href="${order.file_url}" target="_blank" class="btn btn-sm btn-secondary" title="Ver Resultado"><i class="fas fa-download"></i> Ver</a>`;
+        } else {
+          actionButton = `<span>-</span>`;
+        }
+
+        return `<tr><td>${new Date(order.test_date).toLocaleDateString('es-ES')}</td><td>${patientName}</td><td>${order.test_type}</td><td><span class="status-badge ${statusClass}">${order.status}</span></td><td class="actions-cell">${actionButton}</td></tr>`;
+      }).join('');
+    }
+
+    function triggerFileUpload(orderId, patientId) {
+      const uploader = document.getElementById('fileUploader');
+      uploader.dataset.orderId = orderId;
+      uploader.dataset.patientId = patientId;
+      uploader.click();
+    }
+
+    async function handleFileUpload(event) {
+      const file = event.target.files[0];
+      const orderId = event.target.dataset.orderId;
+      const patientId = event.target.dataset.patientId;
+      if (!file || !orderId || !patientId) return;
+      alert(`Subiendo archivo: ${file.name}`);
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const filePath = `public/${patientId}/${orderId}-${cleanFileName}`;
+      try {
+        const { error: uploadError } = await supabase.storage.from('medical-documents').upload(filePath, file, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('medical-documents').getPublicUrl(filePath);
+        const { error: updateError } = await supabase.from('laboratory_results').update({ file_url: urlData.publicUrl, status: 'completed', result_date: new Date().toISOString() }).eq('id', orderId);
+        if (updateError) throw updateError;
+        alert('¡Archivo subido y orden actualizada con éxito!');
+        loadLabOrders();
+      } catch (error) {
+        alert(`Error al subir el archivo: ${error.message}`);
+        console.error(error);
+      }
+    }
+
+    async function saveNewOrder(e) {
+      e.preventDefault();
+      showLoading('saveOrderButton', true);
+      const formData = new FormData(e.target);
+      const newOrder = { patient_id: formData.get('patientId'), ordered_by: currentUser.id, test_type: formData.get('testType'), test_date: formData.get('testDate'), notes: formData.get('notes'), status: 'pending' };
+      const { error } = await supabase.from('laboratory_results').insert(newOrder);
+      if (error) {
+        showMessage('messageContainer', `Error al guardar la orden: ${error.message}`);
+      } else {
+        showMessage('messageContainer', 'Orden guardada con éxito.', 'success');
+        document.getElementById('newOrderForm').reset();
+        document.getElementById('newOrderContainer').style.display = 'none';
+        await loadLabOrders();
+      }
+      showLoading('saveOrderButton', false);
+    }
+
+    // ======================= INICIO DE CORRECCIÓN =======================
+    function loadSidebarMenu(role) {
+      const menuContainer = document.getElementById('navMenu');
+      const menuLinks = {
+        doctor: [
+          { href: '../dashboard/doctor.html', icon: 'fa-home', text: 'Dashboard' },
+          { href: '../patients/index.html', icon: 'fa-user-injured', text: 'Mis Pacientes' },
+          { href: '../appointments/index.html', icon: 'fa-calendar-alt', text: 'Citas' },
+          { href: '../consultations/index.html', icon: 'fa-stethoscope', text: 'Consultas' },
+          { href: '../prescriptions/index.html', icon: 'fa-prescription-bottle-alt', text: 'Recetas' },
+          { href: 'index.html', icon: 'fa-flask', text: 'Laboratorio' }
+        ],
+        nurse: [
+          { href: '../dashboard/nurse.html', icon: 'fa-home', text: 'Dashboard' },
+          { href: 'index.html', icon: 'fa-flask', text: 'Laboratorio' },
+        ],
+        staff: [
+          { href: '../dashboard/staff.html', icon: 'fa-home', text: 'Dashboard' },
+          { href: '../inventory/index.html', icon: 'fa-boxes-stacked', text: 'Inventario' },
+          { href: 'index.html', icon: 'fa-flask', text: 'Laboratorio' },
+        ]
+      };
+      // ======================= FIN DE CORRECCIÓN =======================
+      const items = menuLinks[role] || [];
+      menuContainer.innerHTML = items.map(item => {
+        // Se corrige la lógica para marcar la página activa correctamente
+        const isActive = window.location.pathname.includes(item.href.replace('../', '')) ? 'active' : '';
+        return `<a href="${item.href}" class="nav-item ${isActive}"><i class="fas ${item.icon}"></i><span>${item.text}</span></a>`;
+      }).join('');
+    }
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+    let userMenuVisible = false;
+    function toggleUserMenu() {
+      userMenuVisible = !userMenuVisible;
+      const existingMenu = document.querySelector('.user-dropdown-menu');
+      if (existingMenu) { existingMenu.remove(); return; }
+      if (userMenuVisible) {
+        const menu = document.createElement('div');
+        menu.className = 'user-dropdown-menu';
+        menu.innerHTML = `<a href="../profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a><div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>`;
+        document.querySelector('.user-profile').appendChild(menu);
+      }
+    }
+    async function handleLogout() { await authManager.signOut(); }
+    document.addEventListener('click', (event) => {
+      if (userMenuVisible && !document.querySelector('.user-profile')?.contains(event.target)) { toggleUserMenu(); }
+    });
+  </script>
+  <style>
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .actions-cell {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-sm {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .user-profile {
+      position: relative;
+    }
+
+    .user-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      background: white;
+      border: 1px solid var(--gray-light);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .user-menu-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.2s;
+      color: var(--text-color);
+      text-decoration: none;
+    }
+
+    .user-menu-item:hover {
+      background-color: var(--gray-light);
+    }
+
+    .user-menu-item i {
+      margin-right: 0.75rem;
+      width: 20px;
+      text-align: center;
+    }
+  </style>
+</body>
+
+</html>

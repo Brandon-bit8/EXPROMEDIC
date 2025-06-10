@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Reportes - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/admin.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="../users/index.html"
+           class="nav-item"><i class="fas fa-users"></i><span>Usuarios</span></a>
+        <a href="index.html"
+           class="nav-item active"><i class="fas fa-chart-bar"></i><span>Reportes</span></a>
+        <a href="../settings/index.html"
+           class="nav-item"><i class="fas fa-cog"></i><span>Configuración</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials">A</div>
+            <span id="userName">Admin</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1>Reportes y Estadísticas</h1>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3 class="card-title">Distribución de Usuarios por Rol</h3>
+            </div>
+            <div class="chart-wrapper"
+                 style="height:300px;"><canvas id="userRolesChart"></canvas></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="card-header">
+              <h3 class="card-title">Citas por Mes (Últimos 6 meses)</h3>
+            </div>
+            <div class="chart-wrapper"
+                 style="height:300px;"><canvas id="appointmentsChart"></canvas></div>
+          </div>
+          <div class="dashboard-card"
+               style="grid-column: 1 / -1;">
+            <div class="card-header">
+              <h3 class="card-title">Crecimiento de Nuevos Pacientes (Últimos 6 meses)</h3>
+            </div>
+            <div class="chart-wrapper"
+                 style="height:300px;"><canvas id="patientGrowthChart"></canvas></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // ======================= INICIO DEL BLOQUE DE SEGURIDAD =======================
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html';
+        return;
+      }
+
+      // Obtenemos el perfil para verificar el rol
+      const profile = await authManager.getUserProfile(user.id);
+      if (!profile) {
+        alert('Error: No se pudo verificar el perfil del usuario.');
+        await authManager.signOut();
+        return;
+      }
+
+      // Definimos los roles que SÍ pueden ver esta página
+      const allowedRoles = ['admin'];
+
+      // Si el rol del usuario no está en la lista de permitidos, lo sacamos de aquí
+      if (!allowedRoles.includes(profile.role)) {
+        alert('Acceso Denegado: No tienes permiso para ver esta página.');
+        await authManager.redirectToDashboard(); // Lo mandamos a su propio dashboard
+        return;
+      }
+      // ======================= FIN DEL BLOQUE DE SEGURIDAD =======================
+
+
+      await loadAdminProfile(user);
+      await loadReportData();
+    });
+
+    async function loadAdminProfile(user) {
+      const { data: profile } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+      const fullName = profile?.full_name || 'Admin';
+      document.getElementById('userName').textContent = fullName;
+      const initials = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      document.getElementById('userInitials').textContent = initials;
+    }
+
+    async function loadReportData() {
+      try {
+        // ======================= INICIO DE CORRECCIÓN =======================
+        // Corregimos la consulta para que solo seleccione la columna 'role'
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('users')
+          .select('role');
+        // ======================= FIN DE CORRECCIÓN =======================
+
+        if (rolesError) throw rolesError;
+
+        // Procesar datos para el gráfico de roles
+        const rolesCount = rolesData.reduce((acc, item) => {
+          acc[item.role] = (acc[item.role] || 0) + 1;
+          return acc;
+        }, {});
+
+
+        // 2. Datos para citas por mes
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        const { data: appointmentsData, error: appointmentsError } = await supabase
+          .from('appointments')
+          .select('date_time')
+          .gte('date_time', sixMonthsAgo.toISOString());
+        if (appointmentsError) throw appointmentsError;
+
+        // 3. Datos para crecimiento de pacientes
+        const { data: patientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('created_at')
+          .gte('created_at', sixMonthsAgo.toISOString());
+        if (patientsError) throw patientsError;
+
+        initializeCharts({
+          roles: rolesCount,
+          appointments: appointmentsData,
+          patients: patientsData
+        });
+
+      } catch (error) {
+        console.error('Error cargando datos para reportes:', error);
+        document.querySelector('.content-area').innerHTML += '<p class="message error">No se pudieron cargar los datos para los reportes.</p>';
+      }
+    }
+
+    function initializeCharts(data) {
+      // Gráfico 1: Roles de Usuario (Pie)
+      new Chart(document.getElementById('userRolesChart'), {
+        type: 'pie',
+        data: {
+          labels: Object.keys(data.roles),
+          datasets: [{
+            label: 'Distribución de Roles',
+            data: Object.values(data.roles),
+            backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6'],
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // Procesar datos para los gráficos de meses
+      const monthLabels = [];
+      const appointmentCounts = {};
+      const patientCounts = {};
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const month = d.toLocaleString('es-ES', { month: 'short' });
+        const year = d.getFullYear();
+        const key = `${year}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        monthLabels.push(month.charAt(0).toUpperCase() + month.slice(1));
+        appointmentCounts[key] = 0;
+        patientCounts[key] = 0;
+      }
+
+      data.appointments.forEach(apt => {
+        const date = new Date(apt.date_time);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (key in appointmentCounts) appointmentCounts[key]++;
+      });
+
+      data.patients.forEach(pat => {
+        const date = new Date(pat.created_at);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (key in patientCounts) patientCounts[key]++;
+      });
+
+      // Gráfico 2: Citas por Mes (Bar)
+      new Chart(document.getElementById('appointmentsChart'), {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: 'Número de Citas',
+            data: Object.values(appointmentCounts),
+            backgroundColor: '#2ecc71',
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+      });
+
+      // Gráfico 3: Crecimiento de Pacientes (Line)
+      new Chart(document.getElementById('patientGrowthChart'), {
+        type: 'line',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: 'Nuevos Pacientes',
+            data: Object.values(patientCounts),
+            borderColor: '#3498db',
+            tension: 0.1,
+            fill: false
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+    let userMenuVisible = false;
+    function toggleUserMenu() {
+      userMenuVisible = !userMenuVisible;
+      const menu = document.querySelector('.user-dropdown-menu');
+      if (menu) { menu.remove(); return; }
+      if (userMenuVisible) {
+        const menuDiv = document.createElement('div');
+        menuDiv.className = 'user-dropdown-menu';
+        menuDiv.innerHTML = `<a href="../profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a><div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>`;
+        document.querySelector('.user-profile').appendChild(menuDiv);
+      }
+    }
+    async function handleLogout() { await authManager.signOut(); }
+  </script>
+</body>
+
+</html>

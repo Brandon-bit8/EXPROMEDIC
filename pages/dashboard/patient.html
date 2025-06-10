@@ -10,21 +10,16 @@
           href="../../assets/css/style.css">
     <link rel="stylesheet"
           href="../../assets/css/dashboard.css">
-    <!-- Font Awesome -->
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Custom JS -->
     <script src="../../assets/js/supabase-config.js"></script>
     <script src="../../assets/js/auth.js"></script>
 </head>
 
 <body>
     <div class="dashboard-container">
-        <!-- Sidebar -->
         <aside class="sidebar"
                id="sidebar">
             <div class="sidebar-header">
@@ -74,7 +69,6 @@
             </nav>
         </aside>
 
-        <!-- Main Content -->
         <div class="main-content"
              id="mainContent">
             <header class="dashboard-header">
@@ -89,25 +83,24 @@
                          onclick="toggleNotifications()">
                         <i class="fas fa-bell"></i>
                         <span class="notifications-badge"
-                              id="notificationCount">2</span>
+                              id="notificationCount">0</span>
                     </div>
 
                     <div class="user-profile"
                          onclick="toggleUserMenu()">
                         <div class="initials-avatar"
                              id="userInitials"></div>
-                        <span id="userName">María López</span>
+                        <span id="userName">Cargando...</span>
                     </div>
                 </div>
             </header>
 
             <main class="content-area">
                 <div class="welcome-section">
-                    <h1>Bienvenido/a, <span id="patientName">María López</span></h1>
+                    <h1>Bienvenido/a, <span id="patientName">Cargando...</span></h1>
                     <p>Aquí puedes consultar toda tu información médica</p>
                 </div>
 
-                <!-- Información Rápida -->
                 <div class="dashboard-grid">
                     <div class="dashboard-card patient-info-card">
                         <div class="card-header">
@@ -119,17 +112,17 @@
                             <div class="detail-item">
                                 <span class="label">Edad:</span>
                                 <span class="value"
-                                      id="patientAge">32 años</span>
+                                      id="patientAge">--</span>
                             </div>
                             <div class="detail-item">
                                 <span class="label">Tipo de Sangre:</span>
                                 <span class="value"
-                                      id="bloodType">O+</span>
+                                      id="bloodType">--</span>
                             </div>
                             <div class="detail-item">
                                 <span class="label">Médico Principal:</span>
                                 <span class="value"
-                                      id="primaryDoctor">Dr. García</span>
+                                      id="primaryDoctor">No asignado</span>
                             </div>
                         </div>
                     </div>
@@ -142,15 +135,7 @@
                         </div>
                         <div class="next-appointment"
                              id="nextAppointment">
-                            <div class="appointment-date">15 Enero 2024</div>
-                            <div class="appointment-time">10:30 AM</div>
-                            <div class="appointment-doctor">Dr. García</div>
-                        </div>
-                        <div class="card-footer">
-                            <button class="btn btn-primary btn-sm"
-                                    onclick="viewAppointments()">
-                                Ver todas mis citas
-                            </button>
+                            <p>No hay citas próximas.</p>
                         </div>
                     </div>
 
@@ -161,13 +146,7 @@
                                style="color: var(--success-color);"></i>
                         </div>
                         <div class="card-value"
-                             id="activeMedications">3</div>
-                        <div class="card-footer">
-                            <button class="btn btn-secondary btn-sm"
-                                    onclick="viewMedications()">
-                                Ver medicamentos
-                            </button>
-                        </div>
+                             id="activeMedicationsCount">0</div>
                     </div>
 
                     <div class="dashboard-card">
@@ -177,64 +156,30 @@
                                style="color: var(--accent-color);"></i>
                         </div>
                         <div class="card-value"
-                             id="pendingResults">1</div>
-                        <div class="card-footer">
-                            <button class="btn btn-secondary btn-sm"
-                                    onclick="viewResults()">
-                                Ver resultados
-                            </button>
-                        </div>
+                             id="pendingResultsCount">0</div>
                     </div>
                 </div>
 
-                <!-- Signos Vitales Recientes -->
-                <div class="dashboard-grid">
-                    <div class="dashboard-card vitals-chart-container"
-                         style="grid-column: span 2;">
-                        <div class="card-header">
-                            <h3 class="card-title">Evolución de Signos Vitales</h3>
-                            <select id="vitalSignSelect"
-                                    onchange="updateVitalsChart()">
-                                <option value="blood_pressure">Presión Arterial</option>
-                                <option value="weight">Peso</option>
-                                <option value="heart_rate">Frecuencia Cardíaca</option>
-                            </select>
-                        </div>
-                        <div class="chart-wrapper">
-                            <canvas id="vitalsChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3 class="card-title">Últimos Signos Vitales</h3>
-                        </div>
-                        <div class="vitals-summary"
-                             id="vitalsSummary">
-                            <!-- Los signos vitales se cargarán dinámicamente -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Medicamentos Actuales -->
                 <div class="dashboard-card">
                     <div class="card-header">
-                        <h3 class="card-title">Medicamentos Actuales</h3>
-                        <button class="btn btn-primary"
-                                onclick="viewMedications()">Ver Todos</button>
+                        <h3 class="card-title">Últimos Signos Vitales</h3>
+                        <button class="btn btn-secondary btn-sm"
+                                onclick="window.location.href='../vitals/my-vitals.html'">Ver
+                            Historial</button>
                     </div>
-                    <div class="medications-list"
-                         id="currentMedications">
-                        <!-- Los medicamentos se cargarán dinámicamente -->
+                    <div class="vitals-summary"
+                         id="vitalsSummary">
+                        <p>No hay registros de signos vitales.</p>
                     </div>
                 </div>
 
-                <!-- Historial Reciente -->
                 <div class="table-container">
                     <div class="card-header"
                          style="padding: 1rem;">
-                        <h3 class="card-title">Historial Médico Reciente</h3>
-                        <button class="btn btn-secondary">Ver Expediente Completo</button>
+                        <h3 class="card-title">Consultas Médicas Recientes</h3>
+                        <button class="btn btn-secondary"
+                                onclick="window.location.href='../records/my-record.html'">Ver
+                            Expediente Completo</button>
                     </div>
                     <table class="dashboard-table">
                         <thead>
@@ -243,334 +188,236 @@
                                 <th>Tipo</th>
                                 <th>Médico</th>
                                 <th>Diagnóstico/Motivo</th>
-                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="recentHistory">
-                            <!-- El historial se cargará dinámicamente -->
                         </tbody>
                     </table>
-                </div>
-
-                <!-- Recordatorios -->
-                <div class="dashboard-card">
-                    <div class="card-header">
-                        <h3 class="card-title">Recordatorios</h3>
-                    </div>
-                    <div class="reminders-list"
-                         id="reminders">
-                        <!-- Los recordatorios se cargarán dinámicamente -->
-                    </div>
                 </div>
             </main>
         </div>
     </div>
 
     <script>
-        let vitalsChart;
-
-        // Inicializar dashboard
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadPatientData();
-            await loadVitalsSummary();
-            await loadCurrentMedications();
-            await loadRecentHistory();
-            await loadReminders();
-            initializeVitalsChart();
+            // Primero, obtenemos el usuario autenticado.
+            const { data: { user }, error: userError } = await window.supabase.auth.getUser();
+
+            if (userError || !user) {
+                console.error('Error al obtener el usuario o no hay sesión activa:', userError);
+                // Si hay un error, redirigir al login.
+                window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html';
+                return;
+            }
+
+            // Con el usuario, cargamos todos los datos del dashboard.
+            await loadUserData(user);
         });
 
-        // Cargar datos del paciente
-        async function loadPatientData() {
+        // Carga todos los datos del dashboard para un usuario específico.
+        async function loadUserData(user) {
             try {
-                const { data: { user } } = await window.supabase.auth.getUser();
-                if (!user) throw new Error('No user found');
-
-                const { data: profile, error } = await window.supabase
+                // Obtenemos el perfil público del usuario (de la tabla 'users')
+                const { data: profile, error: profileError } = await window.supabase
                     .from('users')
                     .select('*')
                     .eq('id', user.id)
                     .single();
 
-                if (error) throw error;
+                if (profileError) throw profileError;
 
-                const fullName = profile.full_name;
-                document.getElementById('patientName').textContent = fullName;
-                document.getElementById('userName').textContent = fullName;
-
-                // Generar y mostrar iniciales
-                const initials = fullName
-                    .split(' ')
-                    .map(name => name.charAt(0))
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase();
-                document.getElementById('userInitials').textContent = initials;
-
-                // Cargar información adicional del paciente
-                await loadPatientDetails(user.id);
-
-            } catch (error) {
-                console.error('Error loading patient data:', error);
-                // Si hay un error de autenticación, redirigir al login
-                if (error.message.includes('No user found')) {
-                    window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html';
-                }
-            }
-        }
-
-        // Cargar detalles del paciente
-        async function loadPatientDetails(patientId) {
-            try {
-                const { data: patient, error } = await window.supabase
+                // Obtenemos los detalles del paciente (de la tabla 'patients')
+                const { data: patient, error: patientError } = await window.supabase
                     .from('patients')
-                    .select('*, users!primary_doctor_id(full_name)')
-                    .eq('user_id', patientId)
+                    .select('*, primary_doctor_id(full_name)')
+                    .eq('user_id', user.id)
                     .single();
 
-                if (error) throw error;
+                if (patientError) throw patientError;
 
-                if (patient) {
-                    // Calcular edad
-                    const birthDate = new Date(patient.birth_date);
-                    const age = new Date().getFullYear() - birthDate.getFullYear();
+                // Ahora, llenamos el HTML con los datos obtenidos.
+                populateHeader(profile);
+                populatePatientInfo(patient);
 
-                    document.getElementById('patientAge').textContent = `${age} años`;
-                    document.getElementById('bloodType').textContent = patient.blood_type || 'No especificado';
-                    document.getElementById('primaryDoctor').textContent = patient.users?.full_name || 'No asignado';
-                }
+                // Cargamos las secciones dinámicas.
+                await loadNextAppointment(patient.id);
+                await loadMedications(patient.id);
+                await loadVitalsSummary(patient.id);
+                await loadRecentHistory(patient.id);
+                await loadPendingResults(patient.id);
 
             } catch (error) {
-                console.error('Error loading patient details:', error);
+                console.error('Error cargando los datos del dashboard:', error.message);
+                // Aquí podrías mostrar un mensaje de error en la página.
             }
         }
 
-        // Cargar resumen de signos vitales
-        async function loadVitalsSummary() {
-            const vitals = [
-                { label: 'Presión Arterial', value: '120/80 mmHg', status: 'normal' },
-                { label: 'Frecuencia Cardíaca', value: '72 bpm', status: 'normal' },
-                { label: 'Peso', value: '65 kg', status: 'normal' },
-                { label: 'Temperatura', value: '36.5°C', status: 'normal' }
-            ];
+        // Rellena el header y el menú de usuario.
+        function populateHeader(profile) {
+            const fullName = profile.full_name || 'Usuario';
+            document.getElementById('patientName').textContent = fullName;
+            document.getElementById('userName').textContent = fullName;
+
+            const initials = fullName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('userInitials').textContent = initials;
+        }
+
+        // Rellena la tarjeta de información del paciente.
+        function populatePatientInfo(patient) {
+            if (!patient) return;
+
+            const birthDate = new Date(patient.birth_date);
+            const age = new Date().getFullYear() - birthDate.getFullYear();
+
+            document.getElementById('patientAge').textContent = `${age} años`;
+            document.getElementById('bloodType').textContent = patient.blood_type || 'No especificado';
+            document.getElementById('primaryDoctor').textContent = patient.primary_doctor_id?.full_name || 'No asignado';
+        }
+
+        // Carga la próxima cita.
+        async function loadNextAppointment(patientId) {
+            const now = new Date().toISOString();
+            const { data, error } = await window.supabase
+                .from('appointments')
+                .select('*, doctor_id(full_name)')
+                .eq('patient_id', patientId)
+                .gte('date_time', now)
+                .order('date_time', { ascending: true })
+                .limit(1)
+                .single();
+
+            const container = document.getElementById('nextAppointment');
+            if (error || !data) {
+                container.innerHTML = '<p>No tienes citas próximas.</p>';
+                return;
+            }
+
+            const appointmentDate = new Date(data.date_time);
+            container.innerHTML = `
+                <div class="appointment-date">${appointmentDate.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+                <div class="appointment-time">${appointmentDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</div>
+                <div class="appointment-doctor">${data.doctor_id.full_name}</div>
+            `;
+        }
+
+        // Carga el conteo de medicamentos activos
+        async function loadMedications(patientId) {
+            const { count, error } = await window.supabase
+                .from('medications')
+                .select('*', { count: 'exact', head: true })
+                .eq('patient_id', patientId)
+                .eq('status', 'active');
+
+            if (!error) {
+                document.getElementById('activeMedicationsCount').textContent = count || 0;
+            }
+        }
+
+        // Carga el conteo de resultados pendientes
+        async function loadPendingResults(patientId) {
+            const { count, error } = await window.supabase
+                .from('laboratory_results')
+                .select('*', { count: 'exact', head: true })
+                .eq('patient_id', patientId)
+                .eq('status', 'pending');
+
+            if (!error) {
+                document.getElementById('pendingResultsCount').textContent = count || 0;
+            }
+        }
+
+        // Carga el resumen de los últimos signos vitales.
+        async function loadVitalsSummary(patientId) {
+            const { data, error } = await window.supabase
+                .from('vital_signs')
+                .select('*')
+                .eq('patient_id', patientId)
+                .order('date_recorded', { ascending: false })
+                .limit(1)
+                .single();
 
             const summaryContainer = document.getElementById('vitalsSummary');
-            summaryContainer.innerHTML = vitals.map(vital => `
+            if (error || !data) {
+                summaryContainer.innerHTML = '<p>No hay registros de signos vitales.</p>';
+                return;
+            }
+
+            summaryContainer.innerHTML = `
                 <div class="vital-item">
-                    <span class="vital-label">${vital.label}</span>
-                    <span class="vital-value ${vital.status}">${vital.value}</span>
+                    <span class="vital-label">Presión Arterial:</span>
+                    <span class="vital-value">${data.blood_pressure_systolic || '--'}/${data.blood_pressure_diastolic || '--'} mmHg</span>
                 </div>
-            `).join('');
+                <div class="vital-item">
+                    <span class="vital-label">Frecuencia Cardíaca:</span>
+                    <span class="vital-value">${data.heart_rate || '--'} bpm</span>
+                </div>
+                <div class="vital-item">
+                    <span class="vital-label">Peso:</span>
+                    <span class="vital-value">${data.weight || '--'} kg</span>
+                </div>
+                <div class="vital-item">
+                    <span class="vital-label">Temperatura:</span>
+                    <span class="vital-value">${data.temperature || '--'} °C</span>
+                </div>
+            `;
         }
 
-        // Cargar medicamentos actuales
-        async function loadCurrentMedications() {
-            const medications = [
-                {
-                    name: 'Losartán 50mg',
-                    frequency: 'Cada 12 horas',
-                    nextDose: '14:00',
-                    remaining: 15
-                },
-                {
-                    name: 'Metformina 850mg',
-                    frequency: 'Cada 8 horas',
-                    nextDose: '16:00',
-                    remaining: 8
-                },
-                {
-                    name: 'Omeprazol 20mg',
-                    frequency: 'En ayunas',
-                    nextDose: 'Mañana 08:00',
-                    remaining: 22
-                }
-            ];
-
-            const medicationsContainer = document.getElementById('currentMedications');
-            medicationsContainer.innerHTML = medications.map(med => `
-                <div class="medication-item">
-                    <div class="medication-info">
-                        <strong>${med.name}</strong>
-                        <span>${med.frequency}</span>
-                        <small>Próxima dosis: ${med.nextDose}</small>
-                    </div>
-                    <div class="medication-status">
-                        <span class="pills-remaining">${med.remaining} pastillas</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Cargar historial reciente
-        async function loadRecentHistory() {
-            const history = [
-                {
-                    date: '2024-01-10',
-                    type: 'Consulta',
-                    doctor: 'Dr. García',
-                    diagnosis: 'Control rutinario - Hipertensión controlada'
-                },
-                {
-                    date: '2024-01-05',
-                    type: 'Laboratorio',
-                    doctor: 'Dr. García',
-                    diagnosis: 'Análisis de sangre - Resultados normales'
-                },
-                {
-                    date: '2023-12-20',
-                    type: 'Consulta',
-                    doctor: 'Dr. García',
-                    diagnosis: 'Seguimiento diabetes - Ajuste medicación'
-                }
-            ];
+        // Carga el historial de consultas recientes.
+        async function loadRecentHistory(patientId) {
+            const { data, error } = await window.supabase
+                .from('medical_consultations')
+                .select('*, doctor_id(full_name)')
+                .eq('patient_id', patientId)
+                .order('date_time', { ascending: false })
+                .limit(5);
 
             const tbody = document.getElementById('recentHistory');
-            tbody.innerHTML = history.map(item => `
+            if (error || !data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay consultas recientes.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
                 <tr>
-                    <td>${item.date}</td>
-                    <td>${item.type}</td>
-                    <td>${item.doctor}</td>
-                    <td>${item.diagnosis}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary">Ver</button>
-                    </td>
+                    <td>${new Date(item.date_time).toLocaleDateString('es-ES')}</td>
+                    <td>${item.consultation_type || 'Consulta'}</td>
+                    <td>${item.doctor_id.full_name || 'No especificado'}</td>
+                    <td>${item.diagnosis || 'Control'}</td>
                 </tr>
             `).join('');
         }
 
-        // Cargar recordatorios
-        async function loadReminders() {
-            const reminders = [
-                {
-                    type: 'medication',
-                    message: 'Tomar Losartán a las 14:00',
-                    time: '13:45'
-                },
-                {
-                    type: 'appointment',
-                    message: 'Cita con Dr. García mañana',
-                    time: 'Mañana 10:30'
-                },
-                {
-                    type: 'lab',
-                    message: 'Recoger resultados de laboratorio',
-                    time: 'Pendiente'
-                }
-            ];
-
-            const remindersContainer = document.getElementById('reminders');
-            remindersContainer.innerHTML = reminders.map(reminder => `
-                <div class="reminder-item ${reminder.type}">
-                    <i class="fas ${getIconForType(reminder.type)}"></i>
-                    <div class="reminder-content">
-                        <span>${reminder.message}</span>
-                        <small>${reminder.time}</small>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Obtener icono según el tipo
-        function getIconForType(type) {
-            const icons = {
-                medication: 'fa-pills',
-                appointment: 'fa-calendar',
-                lab: 'fa-flask'
-            };
-            return icons[type] || 'fa-bell';
-        }
-
-        // Inicializar gráfico de signos vitales
-        function initializeVitalsChart() {
-            const ctx = document.getElementById('vitalsChart').getContext('2d');
-            vitalsChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-                    datasets: [{
-                        label: 'Presión Sistólica',
-                        data: [125, 120, 118, 122, 120, 119],
-                        borderColor: 'rgb(231, 76, 60)',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        tension: 0.4
-                    }, {
-                        label: 'Presión Diastólica',
-                        data: [82, 80, 78, 81, 80, 79],
-                        borderColor: 'rgb(52, 152, 219)',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: false
-                        }
-                    }
-                }
-            });
-        }
-
-        // Actualizar gráfico de signos vitales
-        function updateVitalsChart() {
-            const selectedVital = document.getElementById('vitalSignSelect').value;
-            // Aquí se actualizaría el gráfico según la selección
-            console.log('Updating chart for:', selectedVital);
-        }
-
-        // Funciones de navegación
-        function viewAppointments() {
-            const rootUrl = authManager.getProjectRoot();
-            window.location.href = rootUrl + 'pages/appointments/my-appointments.html';
-        }
-
-        function viewMedications() {
-            const rootUrl = authManager.getProjectRoot();
-            window.location.href = rootUrl + 'pages/medications/my-medications.html';
-        }
-
-        function viewResults() {
-            const rootUrl = authManager.getProjectRoot();
-            window.location.href = rootUrl + 'pages/results/index.html';
-        }
-
+        // --- Funciones de UI ---
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
+            document.getElementById('sidebar').classList.toggle('collapsed');
+            document.getElementById('mainContent').classList.toggle('expanded');
         }
 
         let userMenuVisible = false;
         function toggleUserMenu() {
             userMenuVisible = !userMenuVisible;
-            const menu = document.createElement('div');
-            menu.className = 'user-dropdown-menu';
-            menu.innerHTML = `
-                <div class="user-menu-item" onclick="viewProfile()">
-                    <i class="fas fa-user"></i> Mi Perfil
-                </div>
-                <div class="user-menu-item" onclick="handleLogout()">
-                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-                </div>
-            `;
-
             const existingMenu = document.querySelector('.user-dropdown-menu');
             if (existingMenu) {
                 existingMenu.remove();
             }
 
             if (userMenuVisible) {
-                const userProfile = document.querySelector('.user-profile');
-                userProfile.appendChild(menu);
+                const menu = document.createElement('div');
+                menu.className = 'user-dropdown-menu';
+                menu.innerHTML = `
+                    <div class="user-menu-item" onclick="viewProfile()">
+                        <i class="fas fa-user"></i> Mi Perfil
+                    </div>
+                    <div class="user-menu-item" onclick="handleLogout()">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                    </div>
+                `;
+                document.querySelector('.user-profile').appendChild(menu);
             }
         }
 
         function viewProfile() {
-            const rootUrl = authManager.getProjectRoot();
-            window.location.href = rootUrl + 'pages/profile/index.html';
+            window.location.href = authManager.getProjectRoot() + 'pages/profile/index.html';
         }
 
         async function handleLogout() {
@@ -581,12 +428,10 @@
             console.log('Toggle notifications');
         }
 
-        // Cerrar menú cuando se hace clic fuera de él
         document.addEventListener('click', function (event) {
             const userProfile = document.querySelector('.user-profile');
             const userMenu = document.querySelector('.user-dropdown-menu');
-
-            if (userMenu && !userProfile.contains(event.target)) {
+            if (userMenu && userProfile && !userProfile.contains(event.target)) {
                 userMenu.remove();
                 userMenuVisible = false;
             }
@@ -594,7 +439,6 @@
     </script>
 
     <style>
-        /* Estilos del menú de usuario */
         .user-profile {
             position: relative;
             cursor: pointer;
@@ -630,7 +474,6 @@
             text-align: center;
         }
 
-        /* Estilos de la información del paciente */
         .patient-info-card .patient-details {
             padding: 1rem 0;
         }
@@ -676,8 +519,12 @@
         .vital-item {
             display: flex;
             justify-content: space-between;
-            padding: 0.5rem 0;
+            padding: 0.5rem;
             border-bottom: 1px solid var(--gray-light);
+        }
+
+        .vital-item:last-child {
+            border-bottom: none;
         }
 
         .vital-label {
@@ -686,91 +533,6 @@
 
         .vital-value {
             font-weight: 600;
-        }
-
-        .vital-value.normal {
-            color: var(--success-color);
-        }
-
-        .medication-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            border-bottom: 1px solid var(--gray-light);
-        }
-
-        .medication-info strong {
-            display: block;
-            color: var(--primary-color);
-        }
-
-        .medication-info span {
-            color: var(--gray);
-            font-size: 0.9rem;
-        }
-
-        .medication-info small {
-            display: block;
-            color: var(--secondary-color);
-            font-size: 0.8rem;
-            margin-top: 0.25rem;
-        }
-
-        .pills-remaining {
-            background-color: var(--gray-light);
-            padding: 0.25rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-        }
-
-        .reminder-item {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem;
-            border-left: 4px solid;
-            margin-bottom: 0.5rem;
-            background-color: var(--gray-light);
-        }
-
-        .reminder-item.medication {
-            border-color: var(--success-color);
-        }
-
-        .reminder-item.appointment {
-            border-color: var(--warning-color);
-        }
-
-        .reminder-item.lab {
-            border-color: var(--secondary-color);
-        }
-
-        .reminder-item i {
-            margin-right: 1rem;
-            color: var(--primary-color);
-        }
-
-        .reminder-content span {
-            display: block;
-            font-weight: 500;
-        }
-
-        .reminder-content small {
-            color: var(--gray);
-            font-size: 0.8rem;
-        }
-
-        /* Estilos para el contenedor de la gráfica */
-        .vitals-chart-container {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .chart-wrapper {
-            position: relative;
-            height: 300px;
-            width: 100%;
-            margin: 1rem 0;
         }
     </style>
 </body>

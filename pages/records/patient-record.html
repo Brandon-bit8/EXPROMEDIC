@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>Expediente del Paciente - MediRecord Pro</title>
+    <link rel="stylesheet"
+          href="../../assets/css/style.css">
+    <link rel="stylesheet"
+          href="../../assets/css/dashboard.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../assets/js/supabase-config.js"></script>
+    <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar"
+               id="sidebar">
+            <div class="sidebar-header"><button class="toggle-sidebar"
+                        onclick="toggleSidebar()">☰</button>
+                <h2>MediRecord Pro</h2>
+            </div>
+            <nav class="nav-menu">
+                <a href="../dashboard/doctor.html"
+                   class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+                <a href="../patients/index.html"
+                   class="nav-item active"><i class="fas fa-user-injured"></i><span>Mis
+                        Pacientes</span></a>
+                <a href="../appointments/index.html"
+                   class="nav-item"><i class="fas fa-calendar-alt"></i><span>Citas</span></a>
+                <a href="../consultations/index.html"
+                   class="nav-item"><i class="fas fa-stethoscope"></i><span>Consultas</span></a>
+                <a href="../prescriptions/index.html"
+                   class="nav-item"><i
+                       class="fas fa-prescription-bottle-alt"></i><span>Recetas</span></a>
+            </nav>
+        </aside>
+
+        <div class="main-content"
+             id="mainContent">
+            <header class="dashboard-header">
+                <div class="user-menu"
+                     style="margin-left: auto;">
+                    <div class="user-profile"
+                         onclick="toggleUserMenu()">
+                        <div class="initials-avatar"
+                             id="userInitials"></div><span id="userName"></span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-area">
+                <div class="patient-header-card">
+                    <div class="initials-avatar-large"
+                         id="patientInitials"></div>
+                    <div class="patient-header-info">
+                        <h1 id="patientFullName">Cargando...</h1>
+                        <p><span id="patientAge">--</span> años • <span id="patientGender">--</span>
+                            • Tipo de Sangre: <span id="patientBloodType">--</span></p>
+                    </div>
+                </div>
+                <div class="tabs">
+                    <button class="tab-link active"
+                            onclick="openTab(event, 'consultations')">Consultas</button>
+                    <button class="tab-link"
+                            onclick="openTab(event, 'prescriptions')">Recetas</button>
+                    <button class="tab-link"
+                            onclick="openTab(event, 'vitals')">Signos Vitales</button>
+                    <button class="tab-link"
+                            onclick="openTab(event, 'general')">Info. General</button>
+                </div>
+
+                <div id="consultations"
+                     class="tab-content"
+                     style="display: block;">
+                    <h2>Registrar Nueva Consulta</h2>
+                    <form id="newConsultationForm"
+                          class="auth-form"
+                          style="margin-bottom: 2rem;">
+                        <div class="form-group"><label for="consultationNotes">Notas de Evolución
+                                (SOAP)</label><textarea id="consultationNotes"
+                                      name="consultationNotes"
+                                      rows="6"
+                                      required
+                                      placeholder="Subjetivo, Objetivo, Análisis, Plan..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label for="consultationType">Tipo de
+                                    Consulta</label><input type="text"
+                                       id="consultationType"
+                                       name="consultationType"
+                                       value="Seguimiento"></div>
+                            <div class="form-group"><label for="diagnosis">Diagnóstico</label><input
+                                       type="text"
+                                       id="diagnosis"
+                                       name="diagnosis"
+                                       placeholder="Ej: Hipertensión Arterial"></div>
+                        </div>
+                        <button type="submit"
+                                id="saveConsultationButton"
+                                class="btn btn-primary"
+                                data-original-text="Guardar Consulta">Guardar Consulta</button>
+                    </form>
+                    <hr>
+                    <h2>Historial de Consultas</h2>
+                    <div id="consultationsContent">
+                        <p>Cargando historial...</p>
+                    </div>
+                </div>
+
+                <div id="prescriptions"
+                     class="tab-content">
+                    <h2>Crear Nueva Receta</h2>
+                    <form id="newPrescriptionForm"
+                          class="auth-form"
+                          style="margin-bottom: 2rem;">
+                        <div class="form-group"><label for="medicationName">Nombre del
+                                Medicamento</label><input type="text"
+                                   id="medicationName"
+                                   name="medicationName"
+                                   required></div>
+                        <div class="form-row">
+                            <div class="form-group"><label for="dosage">Dosis</label><input
+                                       type="text"
+                                       id="dosage"
+                                       name="dosage"
+                                       placeholder="Ej: 500 mg"></div>
+                            <div class="form-group"><label for="frequency">Frecuencia</label><input
+                                       type="text"
+                                       id="frequency"
+                                       name="frequency"
+                                       placeholder="Ej: Cada 8 horas"></div>
+                        </div>
+                        <div class="form-group"><label for="notes">Indicaciones /
+                                Duración</label><input type="text"
+                                   id="notes"
+                                   name="notes"
+                                   placeholder="Ej: Por 7 días, tomar con alimentos"></div>
+                        <button type="submit"
+                                id="savePrescriptionButton"
+                                class="btn btn-primary"
+                                data-original-text="Guardar Receta">Guardar Receta</button>
+                    </form>
+                    <hr>
+                    <h2>Historial de Recetas</h2>
+                    <div id="prescriptionsContent">
+                        <p>Cargando historial...</p>
+                    </div>
+                </div>
+
+                <div id="vitals"
+                     class="tab-content">
+                    <h2>Registrar Nuevos Signos Vitales</h2>
+                    <form id="newVitalsForm"
+                          class="auth-form"
+                          style="margin-bottom: 2rem;">
+                        <div class="form-row">
+                            <div class="form-group"><label for="weight">Peso (kg)</label><input
+                                       type="number"
+                                       step="0.1"
+                                       id="weight"
+                                       name="weight"></div>
+                            <div class="form-group"><label for="height">Altura (cm)</label><input
+                                       type="number"
+                                       step="0.1"
+                                       id="height"
+                                       name="height"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label for="blood_pressure_systolic">Presión
+                                    Sistólica
+                                    (mmHg)</label><input type="number"
+                                       id="blood_pressure_systolic"
+                                       name="blood_pressure_systolic"></div>
+                            <div class="form-group"><label for="blood_pressure_diastolic">Presión
+                                    Diastólica
+                                    (mmHg)</label><input type="number"
+                                       id="blood_pressure_diastolic"
+                                       name="blood_pressure_diastolic"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label for="heart_rate">Frec. Cardíaca
+                                    (bpm)</label><input type="number"
+                                       id="heart_rate"
+                                       name="heart_rate"></div>
+                            <div class="form-group"><label for="temperature">Temperatura
+                                    (°C)</label><input type="number"
+                                       step="0.1"
+                                       id="temperature"
+                                       name="temperature"></div>
+                        </div>
+                        <button type="submit"
+                                id="saveVitalsButton"
+                                class="btn btn-primary"
+                                data-original-text="Guardar Signos Vitales">Guardar Signos
+                            Vitales</button>
+                    </form>
+                    <hr>
+                    <h2>Historial de Signos Vitales</h2>
+                    <div id="vitalsContent"
+                         class="table-container">
+                        <p>Cargando historial...</p>
+                    </div>
+                </div>
+                <div id="general"
+                     class="tab-content">
+                    <h2>Información General</h2>
+                    <div id="generalInfoContent"
+                         class="info-grid"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        let currentDoctor;
+        let patientProfile;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+            currentDoctor = user;
+
+            await loadDoctorProfile(currentDoctor);
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const patientUserId = urlParams.get('id');
+            if (!patientUserId) {
+                document.querySelector('.content-area').innerHTML = '<h1>Error: No se especificó un paciente.</h1>';
+                return;
+            }
+            await loadFullPatientRecord(patientUserId);
+
+            document.getElementById('newConsultationForm').addEventListener('submit', saveNewConsultation);
+            document.getElementById('newPrescriptionForm').addEventListener('submit', saveNewPrescription);
+            // ======================= INICIO DE CÓDIGO NUEVO =======================
+            document.getElementById('newVitalsForm').addEventListener('submit', saveNewVitals);
+            // ======================= FIN DE CÓDIGO NUEVO =======================
+        });
+
+        async function loadDoctorProfile(user) {
+            try {
+                const { data: profile } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+                const fullName = profile.full_name || 'Doctor';
+                document.getElementById('userName').textContent = fullName;
+                document.getElementById('userInitials').textContent = (fullName || 'D').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            } catch (error) { console.error("Error cargando perfil del médico:", error); }
+        }
+
+        async function loadFullPatientRecord(id) {
+            try {
+                const { data: patient, error } = await supabase.from('patients').select('*, users!patients_user_id_fkey(*)').eq('user_id', id).single();
+                if (error) throw error;
+                patientProfile = patient;
+
+                const fullName = patient.users.full_name;
+                document.getElementById('patientFullName').textContent = fullName;
+                document.getElementById('patientInitials').textContent = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                document.getElementById('patientAge').textContent = patient.birth_date ? new Date().getFullYear() - new Date(patient.birth_date).getFullYear() : 'N/A';
+                document.getElementById('patientGender').textContent = patient.gender || 'N/A';
+                document.getElementById('patientBloodType').textContent = patient.blood_type || 'N/A';
+
+                loadGeneralInfo(patient);
+                loadConsultations(patient.id);
+                loadPrescriptions(patient.id);
+                // ======================= INICIO DE CÓDIGO NUEVO =======================
+                loadVitalSigns(patient.id);
+                // ======================= FIN DE CÓDIGO NUEVO =======================
+                // ======================= INICIO DE CORRECCIÓN 2 =======================
+                loadMedicationSuggestions(); // Llamamos a la nueva función
+                // ======================= FIN DE CORRECCIÓN 2 =======================
+            } catch (error) {
+                console.error("Error cargando el expediente:", error);
+                document.querySelector('.content-area').innerHTML = `<h1>Error al cargar expediente: ${error.message}</h1>`;
+            }
+        }
+
+
+        // ======================= NUEVA FUNCIÓN A AÑADIR DENTRO DEL SCRIPT =======================
+        async function loadMedicationSuggestions() {
+            const datalist = document.getElementById('medicationSuggestions');
+            try {
+                const { data, error } = await supabase.from('pharmacy_stock').select('medication_name');
+                if (error) throw error;
+                datalist.innerHTML = data.map(med => `<option value="${med.medication_name}"></option>`).join('');
+            } catch (error) {
+                console.error("Error cargando sugerencias de medicamentos:", error);
+            }
+        }
+        // ======================= FIN DE NUEVA FUNCIÓN =======================
+
+        function loadGeneralInfo(patient) {
+            const container = document.getElementById('generalInfoContent');
+            container.innerHTML = `<div><strong>Email:</strong> ${patient.users.email || 'N/A'}</div><div><strong>Teléfono:</strong> ${patient.users.phone || 'N/A'}</div><div><strong>Ocupación:</strong> ${patient.occupation || 'N/A'}</div><div><strong>Estado Civil:</strong> ${patient.marital_status || 'N/A'}</div>`;
+        }
+
+        async function loadConsultations(patientInternalId) {
+            const container = document.getElementById('consultationsContent');
+            container.innerHTML = '<p>Cargando...</p>';
+            try {
+                const { data, error } = await supabase.from('medical_consultations').select('*, doctor_id(full_name)').eq('patient_id', patientInternalId).order('date_time', { ascending: false });
+                if (error) throw error;
+                if (data.length === 0) {
+                    container.innerHTML = '<p>No hay consultas registradas para este paciente.</p>';
+                    return;
+                }
+                container.innerHTML = data.map(c => `<div class="consultation-item"><div class="consultation-header"><strong>${new Date(c.date_time).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })}</strong><span>- Dr(a). ${c.doctor_id.full_name || 'Desconocido'}</span></div><div class="consultation-body"><p><strong>Tipo:</strong> ${c.consultation_type || 'Consulta General'}</p><p><strong>Diagnóstico:</strong> ${c.diagnosis || 'No especificado'}</p><p><strong>Notas de Evolución:</strong></p><pre>${c.consultation_notes || 'Sin notas.'}</pre></div></div>`).join('');
+            } catch (error) {
+                container.innerHTML = `<p class="message error">Error al cargar consultas: ${error.message}</p>`;
+            }
+        }
+
+        async function saveNewConsultation(e) {
+            e.preventDefault();
+            showLoading('saveConsultationButton', true);
+            const formData = new FormData(e.target);
+            const newConsultation = { patient_id: patientProfile.id, doctor_id: currentDoctor.id, consultation_notes: formData.get('consultationNotes'), consultation_type: formData.get('consultationType'), diagnosis: formData.get('diagnosis') };
+            const { error } = await supabase.from('medical_consultations').insert(newConsultation);
+            if (error) {
+                alert(`Error al guardar la consulta: ${error.message}`);
+            } else {
+                alert('Consulta guardada con éxito.');
+                e.target.reset();
+                await loadConsultations(patientProfile.id);
+            }
+            showLoading('saveConsultationButton', false);
+        }
+
+        async function loadPrescriptions(patientInternalId) {
+            const container = document.getElementById('prescriptionsContent');
+            container.innerHTML = '<p>Cargando...</p>';
+            try {
+                const { data, error } = await supabase.from('prescriptions').select('*, medications(*)').eq('patient_id', patientInternalId).order('prescription_date', { ascending: false });
+                if (error) throw error;
+                if (data.length === 0) {
+                    container.innerHTML = '<p>No hay recetas registradas para este paciente.</p>';
+                    return;
+                }
+                container.innerHTML = data.map(p => {
+                    const meds = p.medications.length > 0 ? p.medications.map(m => `<li>${m.medication_name} | ${m.dosage} | ${m.frequency} | ${m.notes || ''}</li>`).join('') : '<li>No hay medicamentos detallados.</li>';
+                    return `<div class="consultation-item"><div class="consultation-header"><strong>Receta del ${new Date(p.prescription_date).toLocaleDateString('es-ES')}</strong></div><div class="consultation-body"><ul>${meds}</ul></div></div>`;
+                }).join('');
+            } catch (error) { container.innerHTML = `<p class="message error">Error al cargar recetas: ${error.message}</p>`; }
+        }
+
+        async function saveNewPrescription(e) {
+            e.preventDefault();
+            showLoading('savePrescriptionButton', true);
+            const formData = new FormData(e.target);
+            const { data: presData, error: presError } = await supabase.from('prescriptions').insert({ patient_id: patientProfile.id, doctor_id: currentDoctor.id }).select().single();
+            if (presError) { alert(`Error al crear la receta: ${presError.message}`); showLoading('savePrescriptionButton', false); return; }
+            const newMedication = { prescription_id: presData.id, patient_id: patientProfile.id, medication_name: formData.get('medicationName'), dosage: formData.get('dosage'), frequency: formData.get('frequency'), notes: formData.get('notes'), prescribed_by: currentDoctor.id };
+            const { error: medError } = await supabase.from('medications').insert(newMedication);
+            if (medError) {
+                alert(`Error al guardar el medicamento: ${medError.message}`);
+            } else {
+                alert('Receta guardada con éxito.');
+                e.target.reset();
+                await loadPrescriptions(patientProfile.id);
+            }
+            showLoading('savePrescriptionButton', false);
+        }
+
+        // ======================= INICIO DE CÓDIGO NUEVO =======================
+        async function loadVitalSigns(patientInternalId) {
+            const container = document.getElementById('vitalsContent');
+            container.innerHTML = '<p>Cargando...</p>';
+            try {
+                const { data, error } = await supabase.from('vital_signs').select('*, recorded_by(full_name)').eq('patient_id', patientInternalId).order('date_recorded', { ascending: false });
+                if (error) throw error;
+                if (data.length === 0) {
+                    container.innerHTML = '<p>No hay signos vitales registrados para este paciente.</p>';
+                    return;
+                }
+                const tableHTML = `
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Peso</th>
+                                <th>Altura</th>
+                                <th>IMC</th>
+                                <th>Presión Arterial</th>
+                                <th>Frec. Cardíaca</th>
+                                <th>Temperatura</th>
+                                <th>Registrado por</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(v => `
+                                <tr>
+                                    <td>${new Date(v.date_recorded).toLocaleString('es-ES')}</td>
+                                    <td>${v.weight || '--'} kg</td>
+                                    <td>${v.height || '--'} cm</td>
+                                    <td>${v.bmi || '--'}</td>
+                                    <td>${v.blood_pressure_systolic || '--'}/${v.blood_pressure_diastolic || '--'}</td>
+                                    <td>${v.heart_rate || '--'} bpm</td>
+                                    <td>${v.temperature || '--'} °C</td>
+                                    <td>${v.recorded_by?.full_name || 'N/A'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                container.innerHTML = tableHTML;
+            } catch (error) {
+                container.innerHTML = `<p class="message error">Error al cargar signos vitales: ${error.message}</p>`;
+            }
+        }
+
+        async function saveNewVitals(e) {
+            e.preventDefault();
+            showLoading('saveVitalsButton', true);
+            const formData = new FormData(e.target);
+            const newVitals = {
+                patient_id: patientProfile.id,
+                recorded_by: currentDoctor.id,
+                weight: formData.get('weight') || null,
+                height: formData.get('height') || null,
+                blood_pressure_systolic: formData.get('blood_pressure_systolic') || null,
+                blood_pressure_diastolic: formData.get('blood_pressure_diastolic') || null,
+                heart_rate: formData.get('heart_rate') || null,
+                temperature: formData.get('temperature') || null
+            };
+
+            const { error } = await supabase.from('vital_signs').insert(newVitals);
+
+            if (error) {
+                alert(`Error al guardar los signos vitales: ${error.message}`);
+            } else {
+                alert('Signos vitales guardados con éxito.');
+                e.target.reset();
+                await loadVitalSigns(patientProfile.id); // Recargar la tabla
+            }
+            showLoading('saveVitalsButton', false);
+        }
+        // ======================= FIN DE CÓDIGO NUEVO =======================
+
+        function openTab(evt, tabName) {
+            document.querySelectorAll('.tab-content').forEach(tc => tc.style.display = "none");
+            document.querySelectorAll('.tab-link').forEach(tl => tl.classList.remove('active'));
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+        let userMenuVisible = false;
+        function toggleUserMenu() {
+            userMenuVisible = !userMenuVisible;
+            const existingMenu = document.querySelector('.user-dropdown-menu');
+            if (existingMenu) { existingMenu.remove(); return; }
+            if (userMenuVisible) {
+                const menu = document.createElement('div');
+                menu.className = 'user-dropdown-menu';
+                menu.innerHTML = `<a href="../profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a><div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>`;
+                document.querySelector('.user-profile').appendChild(menu);
+            }
+        }
+        async function handleLogout() { await authManager.signOut(); }
+        document.addEventListener('click', (event) => {
+            if (userMenuVisible && !document.querySelector('.user-profile').contains(event.target)) { toggleUserMenu(); }
+        });
+    </script>
+    <style>
+        .patient-header-card {
+            display: flex;
+            align-items: center;
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .initials-avatar-large {
+            width: 80px;
+            height: 80px;
+            background: var(--secondary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-right: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .patient-header-info h1 {
+            margin: 0;
+        }
+
+        .patient-header-info p {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            overflow: hidden;
+            border-bottom: 1px solid var(--gray-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-link {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 1rem;
+        }
+
+        .tab-link:hover {
+            background-color: var(--gray-light);
+        }
+
+        .tab-link.active {
+            border-bottom: 3px solid var(--secondary-color);
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 1rem;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .consultation-item {
+            border: 1px solid var(--gray-light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: var(--white);
+        }
+
+        .consultation-header {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--gray-light);
+            padding-bottom: 0.5rem;
+        }
+
+        .consultation-header span {
+            color: var(--gray);
+        }
+
+        .consultation-body {
+            padding-top: 0.5rem;
+        }
+
+        .consultation-body p {
+            margin-bottom: 0.5rem;
+        }
+
+        .consultation-body ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+
+        .consultation-body pre {
+            white-space: pre-wrap;
+            background-color: #f9f9f9;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-family: inherit;
+            color: #555;
+        }
+
+        .user-profile {
+            position: relative;
+        }
+
+        .user-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 5px);
+            right: 0;
+            background: white;
+            border: 1px solid var(--gray-light);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            min-width: 200px;
+            overflow: hidden;
+        }
+
+        .user-menu-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+            color: var(--text-color);
+            text-decoration: none;
+        }
+
+        .user-menu-item:hover {
+            background-color: var(--gray-light);
+        }
+
+        .user-menu-item i {
+            margin-right: 0.75rem;
+            width: 20px;
+            text-align: center;
+        }
+    </style>
+</body>
+
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Configuración - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2 id="sidebarClinicName">MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/admin.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="../users/index.html"
+           class="nav-item"><i class="fas fa-users"></i><span>Usuarios</span></a>
+        <a href="../reports/index.html"
+           class="nav-item"><i class="fas fa-chart-bar"></i><span>Reportes</span></a>
+        <a href="index.html"
+           class="nav-item active"><i class="fas fa-cog"></i><span>Configuración</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials">A</div>
+            <span id="userName">Admin</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1>Configuración</h1>
+        </div>
+
+        <div class="dashboard-card"
+             style="margin-bottom: 2rem;">
+          <h3 class="card-title">Apariencia del Sistema</h3>
+          <form id="appearanceForm"
+                class="auth-form">
+            <div class="form-group">
+              <label for="clinicName">Nombre de la Clínica</label>
+              <input type="text"
+                     id="clinicName"
+                     name="clinicName">
+            </div>
+            <div id="appearanceMessage"
+                 class="message-container"></div>
+            <button type="submit"
+                    class="btn btn-primary">Guardar Cambios de Apariencia</button>
+          </form>
+        </div>
+
+        <div class="dashboard-card">
+          <h3 class="card-title">Seguridad de la Cuenta</h3>
+          <form id="passwordChangeForm"
+                class="auth-form">
+            <div class="form-group">
+              <label for="newPassword">Nueva Contraseña</label>
+              <input type="password"
+                     id="newPassword"
+                     name="newPassword"
+                     placeholder="Mínimo 6 caracteres"
+                     required>
+            </div>
+            <div class="form-group">
+              <label for="confirmPassword">Confirmar Nueva Contraseña</label>
+              <input type="password"
+                     id="confirmPassword"
+                     name="confirmPassword"
+                     required>
+            </div>
+            <div id="passwordMessage"
+                 class="message-container"></div>
+            <button type="submit"
+                    class="btn btn-primary">Cambiar mi Contraseña</button>
+          </form>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // ======================= INICIO DEL BLOQUE DE SEGURIDAD =======================
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html';
+        return;
+      }
+
+      // Obtenemos el perfil para verificar el rol
+      const profile = await authManager.getUserProfile(user.id);
+      if (!profile) {
+        alert('Error: No se pudo verificar el perfil del usuario.');
+        await authManager.signOut();
+        return;
+      }
+
+      // Definimos los roles que SÍ pueden ver esta página
+      const allowedRoles = ['admin'];
+
+      // Si el rol del usuario no está en la lista de permitidos, lo sacamos de aquí
+      if (!allowedRoles.includes(profile.role)) {
+        alert('Acceso Denegado: No tienes permiso para ver esta página.');
+        await authManager.redirectToDashboard(); // Lo mandamos a su propio dashboard
+        return;
+      }
+      // ======================= FIN DEL BLOQUE DE SEGURIDAD =======================
+
+
+      await loadAdminProfile(user);
+      await loadSystemSettings();
+
+      document.getElementById('appearanceForm').addEventListener('submit', handleAppearanceUpdate);
+      document.getElementById('passwordChangeForm').addEventListener('submit', handlePasswordUpdate);
+    });
+
+    async function loadAdminProfile(user) {
+      const { data: profile } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+      document.getElementById('userName').textContent = profile?.full_name || 'Admin';
+      document.getElementById('userInitials').textContent = (profile?.full_name || 'A').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    async function loadSystemSettings() {
+      const { data, error } = await supabase.from('system_settings').select('*').eq('id', 1).single();
+      if (error) {
+        console.error("Error cargando configuración:", error);
+        return;
+      }
+      if (data) {
+        document.getElementById('clinicName').value = data.clinic_name;
+        document.getElementById('sidebarClinicName').textContent = data.clinic_name;
+      }
+    }
+
+    async function handleAppearanceUpdate(e) {
+      e.preventDefault();
+      const newName = document.getElementById('clinicName').value;
+      const { error } = await supabase.from('system_settings').update({ clinic_name: newName }).eq('id', 1);
+
+      if (error) {
+        showMessage('appearanceMessage', `Error: ${error.message}`, 'error');
+      } else {
+        showMessage('appearanceMessage', 'Nombre de la clínica actualizado con éxito.', 'success');
+        document.getElementById('sidebarClinicName').textContent = newName;
+      }
+    }
+
+    async function handlePasswordUpdate(e) {
+      e.preventDefault();
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (newPassword.length < 6) {
+        showMessage('passwordMessage', 'La contraseña debe tener al menos 6 caracteres.', 'error');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showMessage('passwordMessage', 'Las contraseñas no coinciden.', 'error');
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+      if (error) {
+        showMessage('passwordMessage', `Error al cambiar la contraseña: ${error.message}`, 'error');
+      } else {
+        showMessage('passwordMessage', 'Contraseña actualizada con éxito.', 'success');
+        e.target.reset();
+      }
+    }
+
+    function toggleSidebar() { /* ... */ }
+    function toggleUserMenu() { /* ... */ }
+  </script>
+</body>
+
+</html>

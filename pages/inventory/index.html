@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Gestión de Inventario - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header">
+        <button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>MediRecord Pro</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/staff.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+        <a href="index.html"
+           class="nav-item active"><i class="fas fa-boxes-stacked"></i><span>Inventario</span></a>
+        <a href="../laboratory/index.html"
+           class="nav-item"><i class="fas fa-flask"></i><span>Laboratorio</span></a>
+      </nav>
+    </aside>
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div>
+            <span id="userName">Cargando...</span>
+          </div>
+        </div>
+      </header>
+      <main class="content-area">
+        <div class="page-header">
+          <h1>Gestión de Inventario de Farmacia</h1>
+        </div>
+        <div class="dashboard-card"
+             style="margin-bottom: 2rem;">
+          <h3 class="card-title">Añadir Nuevo Medicamento</h3>
+          <form id="addMedicationForm"
+                class="auth-form">
+            <div class="form-row">
+              <div class="form-group"><label for="medicationName">Nombre del
+                  Medicamento</label><input type="text"
+                       id="medicationName"
+                       required></div>
+              <div class="form-group"><label for="stockQuantity">Cantidad en Stock</label><input
+                       type="number"
+                       id="stockQuantity"
+                       required></div>
+            </div>
+            <button type="submit"
+                    class="btn btn-primary">Añadir al Inventario</button>
+          </form>
+        </div>
+        <div class="table-container">
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Nombre Medicamento</th>
+                <th>Cantidad</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="editMedicationModal"
+       class="modal">
+    <div class="modal-content">
+      <span class="close-button"
+            onclick="closeModal()">&times;</span>
+      <h2>Editar Medicamento</h2>
+      <form id="editMedicationForm"
+            class="auth-form">
+        <input type="hidden"
+               id="editMedicationId">
+        <div class="form-group">
+          <label for="editMedicationName">Nombre del Medicamento</label>
+          <input type="text"
+                 id="editMedicationName"
+                 disabled>
+        </div>
+        <div class="form-group">
+          <label for="editStockQuantity">Nueva Cantidad en Stock</label>
+          <input type="number"
+                 id="editStockQuantity"
+                 required>
+        </div>
+        <div id="editMessageContainer"
+             class="message-container"></div>
+        <button type="submit"
+                class="btn btn-primary btn-block">Guardar Cambios</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    let currentUser;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      currentUser = user;
+
+      await loadStaffProfile(user);
+      await loadInventory();
+
+      document.getElementById('addMedicationForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('medicationName').value;
+        const quantity = document.getElementById('stockQuantity').value;
+        const { error } = await supabase.from('pharmacy_stock').insert({ medication_name: name, stock_quantity: quantity });
+        if (error) alert(`Error: ${error.message}`);
+        else {
+          e.target.reset();
+          await loadInventory();
+        }
+      });
+
+      // ======================= INICIO DE CÓDIGO NUEVO 2: LÓGICA DEL MODAL =======================
+      document.getElementById('editMedicationForm').addEventListener('submit', handleUpdateMedication);
+      // ======================= FIN DE CÓDIGO NUEVO 2 =======================
+    });
+
+    async function loadStaffProfile(user) {
+      const { data: profile } = await supabase.from('users').select('full_name').eq('id', user.id).single();
+      const fullName = profile?.full_name || 'Staff';
+      document.getElementById('userName').textContent = fullName;
+      document.getElementById('userInitials').textContent = fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+
+    async function loadInventory() {
+      const tableBody = document.getElementById('inventoryTableBody');
+      const { data, error } = await supabase.from('pharmacy_stock').select('*').order('medication_name');
+      if (error) { tableBody.innerHTML = `<tr><td colspan="3">Error: ${error.message}</td></tr>`; return; }
+
+      tableBody.innerHTML = data.map(med => `
+                <tr>
+                    <td>${med.medication_name}</td>
+                    <td>${med.stock_quantity}</td>
+                    <td class="actions-cell">
+                        <button class="btn btn-sm btn-secondary" onclick='openEditModal(${JSON.stringify(med)})'>Editar</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteMed('${med.id}')">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+    }
+
+    async function deleteMed(id) {
+      if (!confirm('¿Seguro que quieres eliminar este medicamento?')) return;
+      await supabase.from('pharmacy_stock').delete().eq('id', id);
+      await loadInventory();
+    }
+
+    // ======================= INICIO DE CÓDIGO NUEVO 3: FUNCIONES DEL MODAL =======================
+    function openEditModal(medication) {
+      document.getElementById('editMedicationId').value = medication.id;
+      document.getElementById('editMedicationName').value = medication.medication_name;
+      document.getElementById('editStockQuantity').value = medication.stock_quantity;
+      document.getElementById('editMedicationModal').style.display = 'block';
+    }
+
+    function closeModal() {
+      document.getElementById('editMedicationModal').style.display = 'none';
+    }
+
+    async function handleUpdateMedication(e) {
+      e.preventDefault();
+      const medId = document.getElementById('editMedicationId').value;
+      const newQuantity = document.getElementById('editStockQuantity').value;
+
+      const { error } = await supabase
+        .from('pharmacy_stock')
+        .update({ stock_quantity: newQuantity, updated_at: new Date() })
+        .eq('id', medId);
+
+      if (error) {
+        showMessage('editMessageContainer', `Error: ${error.message}`, 'error');
+      } else {
+        closeModal();
+        await loadInventory();
+      }
+    }
+
+    // Cierra el modal si se hace clic fuera de él
+    window.onclick = function (event) {
+      const modal = document.getElementById('editMedicationModal');
+      if (event.target == modal) {
+        closeModal();
+      }
+    }
+    // ======================= FIN DE CÓDIGO NUEVO 3 =======================
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+    let userMenuVisible = false;
+    function toggleUserMenu() {
+      userMenuVisible = !userMenuVisible;
+      const existingMenu = document.querySelector('.user-dropdown-menu');
+      if (existingMenu) { existingMenu.remove(); return; }
+
+      if (userMenuVisible) {
+        const menu = document.createElement('div');
+        menu.className = 'user-dropdown-menu';
+        menu.innerHTML = `<a href="../profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a><div class="user-menu-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>`;
+        document.querySelector('.user-profile').appendChild(menu);
+      }
+    }
+    async function handleLogout() { await authManager.signOut(); }
+  </script>
+  <style>
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1001;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 500px;
+    }
+
+    .close-button {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .close-button:hover,
+    .close-button:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .actions-cell {
+      display: flex;
+      gap: 0.5rem;
+    }
+  </style>
+</body>
+
+</html>

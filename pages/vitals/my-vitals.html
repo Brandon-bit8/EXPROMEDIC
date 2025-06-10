@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>Mis Signos Vitales - MediRecord Pro</title>
+  <link rel="stylesheet"
+        href="../../assets/css/style.css">
+  <link rel="stylesheet"
+        href="../../assets/css/dashboard.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../assets/js/supabase-config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="dashboard-container">
+    <aside class="sidebar"
+           id="sidebar">
+      <div class="sidebar-header"><button class="toggle-sidebar"
+                onclick="toggleSidebar()">☰</button>
+        <h2>Mi Portal de Salud</h2>
+      </div>
+      <nav class="nav-menu">
+        <a href="../dashboard/patient.html"
+           class="nav-item"><i class="fas fa-home"></i><span>Inicio</span></a>
+        <a href="../records/my-record.html"
+           class="nav-item"><i class="fas fa-folder-open"></i><span>Mi Expediente</span></a>
+        <a href="../appointments/my-appointments.html"
+           class="nav-item"><i class="fas fa-calendar-alt"></i><span>Mis Citas</span></a>
+        <a href="../results/index.html"
+           class="nav-item"><i class="fas fa-file-medical-alt"></i><span>Resultados</span></a>
+        <a href="../medications/my-medications.html"
+           class="nav-item"><i class="fas fa-pills"></i><span>Medicamentos</span></a>
+        <a href="my-vitals.html"
+           class="nav-item active"><i class="fas fa-heartbeat"></i><span>Signos Vitales</span></a>
+        <a href="../profile/index.html"
+           class="nav-item"><i class="fas fa-user"></i><span>Mi Perfil</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content"
+         id="mainContent">
+      <header class="dashboard-header">
+        <div class="user-menu"
+             style="margin-left: auto;">
+          <div class="user-profile"
+               onclick="toggleUserMenu()">
+            <div class="initials-avatar"
+                 id="userInitials"></div><span id="userName"></span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1>Mis Signos Vitales</h1>
+        </div>
+
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h3 class="card-title">Evolución</h3>
+            <select id="vitalSignSelect"
+                    onchange="updateChart()"
+                    class="form-group"
+                    style="padding: 0.5rem; border-radius: 4px;">
+              <option value="weight">Peso (kg)</option>
+              <option value="bmi">Índice de Masa Corporal (IMC)</option>
+              <option value="blood_pressure">Presión Arterial</option>
+              <option value="heart_rate">Frecuencia Cardíaca</option>
+            </select>
+          </div>
+          <div class="chart-wrapper"
+               style="height: 300px;"><canvas id="vitalsChart"></canvas></div>
+        </div>
+
+        <div class="table-container"
+             style="margin-top: 2rem;">
+          <h2>Historial de Registros</h2>
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Peso</th>
+                <th>Altura</th>
+                <th>IMC</th>
+                <th>Presión Arterial</th>
+                <th>Frec. Cardíaca</th>
+                <th>Temperatura</th>
+              </tr>
+            </thead>
+            <tbody id="vitalsTableBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let patientProfile;
+    let allVitalsData = [];
+    let vitalsChart;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = authManager.getProjectRoot() + 'pages/auth/login.html'; return; }
+      await loadPatientProfile(user.id);
+    });
+
+    async function loadPatientProfile(userId) {
+      try {
+        const { data, error } = await supabase.from('patient_details_view').select('*').eq('user_id', userId).single();
+        if (error) throw error;
+        patientProfile = data;
+        document.getElementById('userName').textContent = patientProfile.full_name;
+        document.getElementById('userInitials').textContent = (patientProfile.full_name || 'P').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        await loadVitalsData(patientProfile.id);
+      } catch (error) { console.error("Error cargando perfil:", error); }
+    }
+
+    async function loadVitalsData(patientInternalId) {
+      const tableBody = document.getElementById('vitalsTableBody');
+      try {
+        const { data, error } = await supabase.from('vital_signs').select('*').eq('patient_id', patientInternalId).order('date_recorded', { ascending: true });
+        if (error) throw error;
+        allVitalsData = data;
+        renderVitalsTable(data);
+        initializeChart();
+      } catch (error) {
+        console.error("Error cargando signos vitales:", error);
+        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Error al cargar datos.</td></tr>';
+      }
+    }
+
+    function renderVitalsTable(vitals) {
+      const tableBody = document.getElementById('vitalsTableBody');
+      if (vitals.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No tienes registros de signos vitales.</td></tr>';
+        return;
+      }
+      tableBody.innerHTML = vitals.reverse().map(v => `
+                <tr>
+                    <td>${new Date(v.date_recorded).toLocaleString('es-ES')}</td>
+                    <td>${v.weight || '--'} kg</td>
+                    <td>${v.height || '--'} cm</td>
+                    <td>${v.bmi || '--'}</td>
+                    <td>${v.blood_pressure_systolic || '--'}/${v.blood_pressure_diastolic || '--'}</td>
+                    <td>${v.heart_rate || '--'} bpm</td>
+                    <td>${v.temperature || '--'} °C</td>
+                </tr>
+            `).join('');
+    }
+
+    function initializeChart() {
+      const ctx = document.getElementById('vitalsChart').getContext('2d');
+      vitalsChart = new Chart(ctx, { type: 'line', data: {}, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false } } } });
+      updateChart(); // Llama para dibujar el gráfico inicial
+    }
+
+    function updateChart() {
+      const selection = document.getElementById('vitalSignSelect').value;
+      const labels = allVitalsData.map(v => new Date(v.date_recorded).toLocaleDateString('es-ES'));
+      let datasets = [];
+
+      if (selection === 'blood_pressure') {
+        datasets.push({
+          label: 'Presión Sistólica',
+          data: allVitalsData.map(v => v.blood_pressure_systolic),
+          borderColor: 'rgb(231, 76, 60)',
+          tension: 0.1
+        });
+        datasets.push({
+          label: 'Presión Diastólica',
+          data: allVitalsData.map(v => v.blood_pressure_diastolic),
+          borderColor: 'rgb(52, 152, 219)',
+          tension: 0.1
+        });
+      } else {
+        const vitalInfo = {
+          weight: { label: 'Peso (kg)', data: allVitalsData.map(v => v.weight), color: 'rgb(46, 204, 113)' },
+          bmi: { label: 'IMC', data: allVitalsData.map(v => v.bmi), color: 'rgb(155, 89, 182)' },
+          heart_rate: { label: 'Frecuencia Cardíaca (bpm)', data: allVitalsData.map(v => v.heart_rate), color: 'rgb(241, 196, 15)' },
+        };
+        datasets.push({
+          label: vitalInfo[selection].label,
+          data: vitalInfo[selection].data,
+          borderColor: vitalInfo[selection].color,
+          tension: 0.1
+        });
+      }
+      vitalsChart.data = { labels, datasets };
+      vitalsChart.update();
+    }
+
+    function toggleSidebar() { /* ... */ }
+    let userMenuVisible = false;
+    function toggleUserMenu() { /* ... */ }
+    async function handleLogout() { /* ... */ }
+  </script>
+</body>
+
+</html>

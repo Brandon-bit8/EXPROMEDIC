@@ -1,94 +1,72 @@
-// Funciones de autenticación
+// assets/js/auth.js
+
 class AuthManager {
   constructor() {
     this.currentUser = null;
-    this.isInitialized = false;
     this.init();
   }
 
   async init() {
-    // Esperar a que Supabase esté disponible
-    const waitForSupabase = () => {
-      return new Promise((resolve) => {
-        const checkSupabase = () => {
-          if (window.supabase) {
-            resolve();
-          } else {
-            setTimeout(checkSupabase, 100);
-          }
-        };
-        checkSupabase();
-      });
-    };
+    await new Promise((resolve) => {
+      const check = () =>
+        window.supabase ? resolve() : setTimeout(check, 100);
+      check();
+    });
 
-    await waitForSupabase();
-
-    // Verificar el estado de autenticación actual sin redirigir
     const {
       data: { session },
     } = await window.supabase.auth.getSession();
     if (session) {
       this.currentUser = session.user;
-    }
-
-    // Verificar si estamos en las páginas correctas
-    const isDashboard = window.location.pathname.includes("/dashboard/");
-    const isAuthPage = window.location.pathname.includes("/auth/");
-    const isIndexPage =
-      window.location.pathname.endsWith("index.html") ||
-      window.location.pathname.endsWith("/");
-
-    // Solo redirigir si hay un problema de autenticación
-    if (!session && isDashboard) {
-      // No hay sesión pero estamos en dashboard - ir al login
-      window.location.href = this.getProjectRoot() + "pages/auth/login.html";
-      return;
-    }
-
-    // Escuchar cambios en el estado de autenticación (solo para eventos futuros)
-    window.supabase.auth.onAuthStateChange((event, session) => {
-      // Evitar redirecciones automáticas en la carga inicial
-      if (!this.isInitialized) {
-        this.isInitialized = true;
-        return;
+      if (window.location.pathname.includes("/auth/")) {
+        this.redirectToDashboard();
       }
+    } else {
+      const isProtectedPage =
+        window.location.pathname.includes("/dashboard/") ||
+        window.location.pathname.includes("/patients/") ||
+        window.location.pathname.includes("/records/");
+      if (isProtectedPage) {
+        window.location.href = this.getProjectRoot() + "pages/auth/login.html";
+      }
+    }
 
-      if (event === "SIGNED_IN") {
-        this.currentUser = session.user;
-        // Solo redirigir si estamos en una página de autenticación
-        if (isAuthPage || isIndexPage) {
-          this.redirectToDashboard();
-        }
-      } else if (event === "SIGNED_OUT") {
+    window.supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
         this.currentUser = null;
-        // Solo redirigir si no estamos ya en una página de autenticación
-        if (!isAuthPage) {
-          window.location.href = this.getProjectRoot() + "index.html";
-        }
+        window.location.href = this.getProjectRoot() + "index.html";
       }
     });
-
-    this.isInitialized = true;
   }
 
-  // Registro de usuario
-  async signUp(email, password, userData) {
+  async resetPassword(email) {
+    try {
+      // ======================= INICIO DE CORRECCIÓN =======================
+      // Debemos usar la URL pública de tu sitio en Netlify, no una local.
+      // REEMPLAZA 'TU-DOMINIO-DE-NETLIFY.netlify.app' CON TU URL REAL.
+      const resetURL =
+        "https://expromedic.netlify.app/pages/auth/update-password.html";
+
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: resetURL,
+      });
+      // ======================= FIN DE CORRECCIÓN =======================
+      if (error) throw error;
+      return { success: true, data };
+    } catch (error) {
+      console.error("Error en reset password:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async signUp(email, password, allUserData) {
     try {
       const { data, error } = await window.supabase.auth.signUp({
         email: email,
         password: password,
-        options: {
-          data: userData,
-        },
+        options: { data: allUserData },
       });
-
       if (error) throw error;
-
-      // Crear perfil de usuario en la tabla users
-      if (data.user) {
-        await this.createUserProfile(data.user, userData);
-      }
-
       return { success: true, data };
     } catch (error) {
       console.error("Error en registro:", error.message);
@@ -96,21 +74,14 @@ class AuthManager {
     }
   }
 
-  // Inicio de sesión
   async signIn(email, password) {
     try {
       const { data, error } = await window.supabase.auth.signInWithPassword({
         email: email,
         password: password,
       });
-
       if (error) throw error;
-
-      // Redirigir manualmente después del login exitoso
-      setTimeout(() => {
-        this.redirectToDashboard();
-      }, 100);
-
+      await this.redirectToDashboard();
       return { success: true, data };
     } catch (error) {
       console.error("Error en login:", error.message);
@@ -118,52 +89,21 @@ class AuthManager {
     }
   }
 
-  // Cerrar sesión
   async signOut() {
     try {
-      const { error } = await window.supabase.auth.signOut();
-      if (error) throw error;
-
-      // Redirigir manualmente después del logout
-      window.location.href = this.getProjectRoot() + "index.html";
-
-      return { success: true };
+      await window.supabase.auth.signOut();
     } catch (error) {
       console.error("Error al cerrar sesión:", error.message);
-      return { success: false, error: error.message };
     }
   }
 
-  // Crear perfil de usuario
-  async createUserProfile(user, userData) {
-    try {
-      const { error } = await window.supabase.from("users").insert([
-        {
-          id: user.id,
-          email: user.email,
-          full_name: userData.full_name,
-          role: userData.role || "patient",
-          phone: userData.phone || "",
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error("Error al crear perfil:", error.message);
-      throw error;
-    }
-  }
-
-  // Obtener perfil de usuario
   async getUserProfile(userId) {
     try {
       const { data, error } = await window.supabase
         .from("users")
-        .select("*")
+        .select("role")
         .eq("id", userId)
         .single();
-
       if (error) throw error;
       return data;
     } catch (error) {
@@ -172,30 +112,28 @@ class AuthManager {
     }
   }
 
-  // Obtener ruta absoluta desde la raíz del proyecto
   getProjectRoot() {
-    const currentPath = window.location.pathname;
-    const projectName = "PROYECTOESME"; // Nombre de la carpeta del proyecto
-    const pathParts = currentPath.split(projectName);
-
-    if (pathParts.length > 1) {
-      // Si estamos dentro del proyecto, construir la ruta base
-      return window.location.origin + pathParts[0] + projectName + "/";
+    const path = window.location.pathname;
+    const pagesIndex = path.indexOf("/pages/");
+    if (pagesIndex > -1) {
+      return path.substring(0, pagesIndex + 1);
     }
-
-    return window.location.origin + "/";
+    if (path.endsWith("/index.html")) {
+      return path.substring(0, path.length - "index.html".length);
+    }
+    return "/";
   }
 
-  // Redirigir al dashboard apropiado
   async redirectToDashboard() {
     try {
-      const user = await window.supabase.auth.getUser();
-      if (user.data.user) {
-        const profile = await this.getUserProfile(user.data.user.id);
+      const {
+        data: { user },
+      } = await window.supabase.auth.getUser();
+      if (user) {
+        const profile = await this.getUserProfile(user.id);
         const rootUrl = this.getProjectRoot();
-
-        if (profile) {
-          let dashboardPath;
+        let dashboardPath = "pages/dashboard/patient.html";
+        if (profile && profile.role) {
           switch (profile.role) {
             case "admin":
               dashboardPath = "pages/dashboard/admin.html";
@@ -206,69 +144,42 @@ class AuthManager {
             case "nurse":
               dashboardPath = "pages/dashboard/nurse.html";
               break;
+            case "staff":
+              dashboardPath = "pages/dashboard/staff.html";
+              break;
             case "patient":
               dashboardPath = "pages/dashboard/patient.html";
               break;
-            default:
-              dashboardPath = "pages/dashboard/patient.html";
           }
-          window.location.href = rootUrl + dashboardPath;
-        } else {
-          window.location.href = rootUrl + "pages/dashboard/patient.html";
         }
+        window.location.href = rootUrl + dashboardPath;
       }
     } catch (error) {
       console.error("Error al redirigir:", error.message);
-      const rootUrl = this.getProjectRoot();
-      window.location.href = rootUrl + "pages/dashboard/patient.html";
+      window.location.href =
+        this.getProjectRoot() + "pages/dashboard/patient.html";
     }
   }
 
-  // Recuperar contraseña
-  async resetPassword(email) {
-    try {
-      const rootUrl = this.getProjectRoot();
-      const resetUrl = rootUrl + "pages/auth/reset-password.html";
-
-      const { error } = await window.supabase.auth.resetPasswordForEmail(
-        email,
-        {
-          redirectTo: resetUrl,
-        }
-      );
-
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      console.error("Error al recuperar contraseña:", error.message);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // Validar email
+  // --- MÉTODOS DE VALIDACIÓN RESTAURADOS ---
   isValidEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
 
-  // Validar contraseña
   isValidPassword(password) {
     return password.length >= 6;
   }
 }
-
-// Instancia global del manejador de autenticación
 const authManager = new AuthManager();
 
-// Funciones auxiliares para formularios
+// --- FUNCIONES AUXILIARES ---
 function showMessage(elementId, message, type = "error") {
   const element = document.getElementById(elementId);
   if (element) {
     element.textContent = message;
-    element.className = `message ${type}`;
+    element.className = `message-container message ${type}`;
     element.style.display = "block";
-
-    // Ocultar mensaje después de 5 segundos
     setTimeout(() => {
       element.style.display = "none";
     }, 5000);
@@ -278,13 +189,174 @@ function showMessage(elementId, message, type = "error") {
 function showLoading(buttonId, show = true) {
   const button = document.getElementById(buttonId);
   if (button) {
+    button.disabled = show;
     if (show) {
-      button.disabled = true;
+      if (!button.dataset.originalText)
+        button.dataset.originalText = button.textContent;
       button.textContent = "Cargando...";
     } else {
-      button.disabled = false;
-      button.textContent =
-        button.getAttribute("data-original-text") || "Enviar";
+      button.textContent = button.dataset.originalText || "Enviar";
     }
   }
+}
+
+// --- INICIO DEL CÓDIGO NUEVO Y MEJORADO PARA LA UI ---
+
+/**
+ * Dibuja la barra lateral de navegación según el rol del usuario.
+ * @param {string} role - El rol del usuario actual ('doctor', 'patient', etc.).
+ * @param {string} currentPage - El nombre del archivo de la página actual para marcarlo como activo.
+ */
+function renderSidebar(role, currentPage) {
+  const menuContainer = document.getElementById("navMenu");
+  if (!menuContainer) return;
+
+  // Plantilla central de todos los enlaces para cada rol
+  const menuLinks = {
+    doctor: [
+      { href: "../dashboard/doctor.html", icon: "fa-home", text: "Dashboard" },
+      {
+        href: "../patients/index.html",
+        icon: "fa-user-injured",
+        text: "Mis Pacientes",
+      },
+      {
+        href: "../appointments/index.html",
+        icon: "fa-calendar-alt",
+        text: "Citas",
+      },
+      {
+        href: "../consultations/index.html",
+        icon: "fa-stethoscope",
+        text: "Consultas",
+      },
+      {
+        href: "../prescriptions/index.html",
+        icon: "fa-prescription-bottle-alt",
+        text: "Recetas",
+      },
+      {
+        href: "../laboratory/index.html",
+        icon: "fa-flask",
+        text: "Laboratorio",
+      },
+      { href: "../profile/index.html", icon: "fa-user", text: "Mi Perfil" },
+    ],
+    patient: [
+      { href: "../dashboard/patient.html", icon: "fa-home", text: "Inicio" },
+      {
+        href: "../records/my-record.html",
+        icon: "fa-folder-open",
+        text: "Mi Expediente",
+      },
+      {
+        href: "../appointments/my-appointments.html",
+        icon: "fa-calendar-alt",
+        text: "Mis Citas",
+      },
+      {
+        href: "../results/index.html",
+        icon: "fa-file-medical-alt",
+        text: "Resultados",
+      },
+      {
+        href: "../medications/my-medications.html",
+        icon: "fa-pills",
+        text: "Medicamentos",
+      },
+      { href: "../profile/index.html", icon: "fa-user", text: "Mi Perfil" },
+    ],
+    nurse: [
+      { href: "../dashboard/nurse.html", icon: "fa-home", text: "Dashboard" },
+      {
+        href: "../patients/index.html",
+        icon: "fa-user-injured",
+        text: "Pacientes",
+      },
+      {
+        href: "../laboratory/index.html",
+        icon: "fa-flask",
+        text: "Laboratorio",
+      },
+      { href: "../profile/index.html", icon: "fa-user", text: "Mi Perfil" },
+    ],
+    admin: [
+      { href: "../dashboard/admin.html", icon: "fa-home", text: "Dashboard" },
+      { href: "../users/index.html", icon: "fa-users", text: "Usuarios" },
+      { href: "../reports/index.html", icon: "fa-chart-bar", text: "Reportes" },
+      { href: "../profile/index.html", icon: "fa-user", text: "Mi Perfil" },
+    ],
+  };
+
+  const items = menuLinks[role] || menuLinks.patient; // Menú de paciente por defecto
+  menuContainer.innerHTML = items
+    .map((item) => {
+      // Comprueba si el final de la ruta actual coincide con el href del item
+      const isActive =
+        currentPage && item.href.endsWith(currentPage) ? "active" : "";
+      return `<a href="${item.href}" class="nav-item ${isActive}"><i class="fas ${item.icon}"></i><span>${item.text}</span></a>`;
+    })
+    .join("");
+}
+
+/**
+ * Inicializa el perfil de usuario en el encabezado.
+ * @param {Object} userProfile - El perfil completo del usuario desde la tabla 'users'.
+ */
+function initializeHeader(userProfile) {
+  const userNameSpan = document.getElementById("userName");
+  const userInitialsDiv = document.getElementById("userInitials");
+  if (!userNameSpan || !userInitialsDiv) return;
+
+  const fullName = userProfile.full_name || "Usuario";
+  userNameSpan.textContent = fullName;
+  userInitialsDiv.textContent = fullName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+}
+
+/**
+ * Añade la funcionalidad para mostrar/ocultar el menú de usuario.
+ */
+function initializeUserMenu() {
+  const userProfileDiv = document.querySelector(".user-profile");
+  if (!userProfileDiv) return;
+
+  let userMenuVisible = false;
+
+  const toggleUserMenu = () => {
+    userMenuVisible = !userMenuVisible;
+    const existingMenu = document.querySelector(".user-dropdown-menu");
+    if (existingMenu) {
+      existingMenu.remove();
+      return;
+    }
+    if (userMenuVisible) {
+      const menu = document.createElement("div");
+      menu.className = "user-dropdown-menu";
+      menu.innerHTML = `
+                <a href="${authManager.getProjectRoot()}pages/profile/index.html" class="user-menu-item"><i class="fas fa-user"></i> Mi Perfil</a>
+                <div class="user-menu-item" onclick="authManager.signOut()"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</div>
+            `;
+      userProfileDiv.appendChild(menu);
+    }
+  };
+
+  userProfileDiv.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleUserMenu();
+  });
+
+  document.addEventListener("click", () => {
+    if (userMenuVisible) {
+      toggleUserMenu();
+    }
+  });
+}
+
+function toggleSidebar() {
+  document.getElementById("sidebar")?.classList.toggle("collapsed");
 }
